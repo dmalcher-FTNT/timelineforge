@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "title": "Business Email Compromise (Template)",
+    "subtitle": "Typical BEC fraud chain — starter template",
+    "timezone": "UTC",
+    "version": 1
+  },
+  "events": [
+    {
+      "id": "tpl-b1",
+      "timestampStart": "2025-06-10T11:00:00Z",
+      "timestampEnd": null,
+      "hostname": "N/A",
+      "username": "finance@corp.com",
+      "details": "CFO received spearphishing email with link to fake Microsoft login page.",
+      "category": "initial-access",
+      "phase": 1,
+      "technique": "T1566.002",
+      "linkedEventIds": ["tpl-b2"],
+      "tags": ["bec", "phishing"]
+    },
+    {
+      "id": "tpl-b2",
+      "timestampStart": "2025-06-10T11:04:00Z",
+      "timestampEnd": null,
+      "hostname": "N/A",
+      "username": "finance@corp.com",
+      "details": "Credentials entered on attacker-controlled site. Session token captured.",
+      "category": "credential-access",
+      "phase": 1,
+      "technique": "T1078",
+      "linkedEventIds": ["tpl-b3"],
+      "tags": ["credential-theft"]
+    },
+    {
+      "id": "tpl-b3",
+      "timestampStart": "2025-06-10T11:06:00Z",
+      "timestampEnd": null,
+      "hostname": "N/A",
+      "username": "finance@corp.com",
+      "details": "Attacker logged into M365 from unusual IP (Nigeria). Inbox rules created to hide replies.",
+      "category": "persistence",
+      "phase": 2,
+      "technique": "T1098",
+      "linkedEventIds": ["tpl-b4"],
+      "tags": ["inbox-rules"]
+    },
+    {
+      "id": "tpl-b4",
+      "timestampStart": "2025-06-11T09:30:00Z",
+      "timestampEnd": null,
+      "hostname": "N/A",
+      "username": "finance@corp.com",
+      "details": "Attacker reviewed email threads about pending vendor payment ($280,000).",
+      "category": "reconnaissance",
+      "phase": 2,
+      "technique": "T1083",
+      "linkedEventIds": ["tpl-b5"],
+      "tags": ["discovery"]
+    },
+    {
+      "id": "tpl-b5",
+      "timestampStart": "2025-06-12T14:15:00Z",
+      "timestampEnd": null,
+      "hostname": "N/A",
+      "username": "finance@corp.com",
+      "details": "Fraudulent email sent to AP team requesting urgent wire transfer to new bank account.",
+      "category": "impact",
+      "phase": 3,
+      "technique": "T1656",
+      "linkedEventIds": ["tpl-b6"],
+      "tags": ["fraud"]
+    },
+    {
+      "id": "tpl-b6",
+      "timestampStart": "2025-06-13T10:00:00Z",
+      "timestampEnd": null,
+      "hostname": "N/A",
+      "username": "N/A",
+      "details": "Bank flagged transaction. Finance team discovered compromise. Mailbox secured.",
+      "category": "detection",
+      "phase": 4,
+      "technique": "",
+      "linkedEventIds": [],
+      "tags": ["containment"]
+    }
+  ]
+}

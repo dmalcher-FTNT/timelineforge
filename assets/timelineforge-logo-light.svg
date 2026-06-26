@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 72 72" role="img" aria-label="TimelineForge Evidence Spine icon">
+  <g aria-hidden="true">
+    <path d="M28.00 16 H32.40" stroke="#64748B" stroke-width="2.00" stroke-linecap="round" opacity=".95"/>
+    <path d="M39.60 36 H46.00" stroke="#64748B" stroke-width="2.00" stroke-linecap="round" opacity=".95"/>
+    <path d="M26.00 56 H32.40" stroke="#64748B" stroke-width="2.00" stroke-linecap="round" opacity=".88"/>
+    <path d="M36 10 L36 62" stroke="#1A1A1A" stroke-width="2.50" stroke-linecap="round"/>
+    <circle cx="36" cy="16" r="4.40" fill="#EE3124"/>
+    <circle cx="36" cy="36" r="3.30" fill="#374151" opacity=".96"/>
+    <circle cx="36" cy="56" r="3.30" fill="#374151" opacity=".82"/>
+  </g>
+</svg>

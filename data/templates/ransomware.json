@@ -1,0 +1,114 @@
+{
+  "meta": {
+    "title": "Ransomware Incident (Template)",
+    "subtitle": "Typical ransomware kill chain — starter template",
+    "timezone": "UTC",
+    "version": 1
+  },
+  "events": [
+    {
+      "id": "tpl-r1",
+      "timestampStart": "2025-03-01T09:15:00Z",
+      "timestampEnd": null,
+      "hostname": "WORKSTATION-01",
+      "username": "CORP\\jsmith",
+      "details": "User opened malicious attachment from phishing email. Macro-enabled document executed.",
+      "category": "initial-access",
+      "phase": 1,
+      "technique": "T1566.001",
+      "linkedEventIds": ["tpl-r2"],
+      "tags": ["phishing"]
+    },
+    {
+      "id": "tpl-r2",
+      "timestampStart": "2025-03-01T09:16:30Z",
+      "timestampEnd": null,
+      "hostname": "WORKSTATION-01",
+      "username": "CORP\\jsmith",
+      "details": "Cobalt Strike beacon established. C2 traffic to external IP observed.",
+      "category": "persistence",
+      "phase": 1,
+      "technique": "T1071",
+      "linkedEventIds": ["tpl-r3"],
+      "tags": ["c2", "beacon"]
+    },
+    {
+      "id": "tpl-r3",
+      "timestampStart": "2025-03-01T14:22:00Z",
+      "timestampEnd": null,
+      "hostname": "DC-01",
+      "username": "CORP\\admin_svc",
+      "details": "Kerberoasting activity detected. Service account credentials harvested.",
+      "category": "credential-access",
+      "phase": 2,
+      "technique": "T1003",
+      "linkedEventIds": ["tpl-r4"],
+      "tags": ["kerberoast"]
+    },
+    {
+      "id": "tpl-r4",
+      "timestampStart": "2025-03-02T02:05:00Z",
+      "timestampEnd": null,
+      "hostname": "FILESERVER-01",
+      "username": "CORP\\admin_svc",
+      "details": "Lateral movement via SMB. Attacker accessed shared drives and staging folder.",
+      "category": "lateral-movement",
+      "phase": 2,
+      "technique": "T1021.002",
+      "linkedEventIds": ["tpl-r5"],
+      "tags": ["smb"]
+    },
+    {
+      "id": "tpl-r5",
+      "timestampStart": "2025-03-02T03:30:00Z",
+      "timestampEnd": null,
+      "hostname": "FILESERVER-01",
+      "username": "N/A",
+      "details": "Data staged for exfiltration. 45 GB compressed to archive on temp share.",
+      "category": "exfiltration",
+      "phase": 3,
+      "technique": "T1560",
+      "linkedEventIds": ["tpl-r6"],
+      "tags": ["staging"]
+    },
+    {
+      "id": "tpl-r6",
+      "timestampStart": "2025-03-02T05:00:00Z",
+      "timestampEnd": null,
+      "hostname": "Multiple",
+      "username": "N/A",
+      "details": "Ransomware payload deployed via GPO. File encryption began on 120 endpoints.",
+      "category": "impact",
+      "phase": 4,
+      "technique": "T1486",
+      "linkedEventIds": ["tpl-r7"],
+      "tags": ["ransomware", "gpo"]
+    },
+    {
+      "id": "tpl-r7",
+      "timestampStart": "2025-03-02T05:12:00Z",
+      "timestampEnd": null,
+      "hostname": "Multiple",
+      "username": "N/A",
+      "details": "Shadow copies deleted. Backup services stopped.",
+      "category": "impact",
+      "phase": 4,
+      "technique": "T1490",
+      "linkedEventIds": ["tpl-r8"],
+      "tags": ["impact"]
+    },
+    {
+      "id": "tpl-r8",
+      "timestampStart": "2025-03-02T08:45:00Z",
+      "timestampEnd": null,
+      "hostname": "WORKSTATION-01",
+      "username": "N/A",
+      "details": "EDR detected ransomware behavior. Network isolation initiated. Incident declared.",
+      "category": "detection",
+      "phase": 5,
+      "technique": "",
+      "linkedEventIds": [],
+      "tags": ["containment"]
+    }
+  ]
+}

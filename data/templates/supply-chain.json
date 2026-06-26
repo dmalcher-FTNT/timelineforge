@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "title": "Supply Chain Compromise (Template)",
+    "subtitle": "Vendor update trojan — starter template",
+    "timezone": "UTC",
+    "version": 1
+  },
+  "events": [
+    {
+      "id": "tpl-sc1",
+      "timestampStart": "2025-04-10T08:00:00Z",
+      "hostname": "BUILD-SERVER-03",
+      "username": "N/A",
+      "details": "Malicious dependency injected into vendor CI pipeline. Signed update package published.",
+      "category": "initial-access",
+      "phase": 1,
+      "technique": "T1195.002",
+      "linkedEventIds": ["tpl-sc2"],
+      "tags": ["supply-chain"]
+    },
+    {
+      "id": "tpl-sc2",
+      "timestampStart": "2025-04-10T14:30:00Z",
+      "hostname": "APP-SERVER-12",
+      "username": "SYSTEM",
+      "details": "Auto-update pulled trojanized package. Web shell dropped in temp directory.",
+      "category": "persistence",
+      "phase": 2,
+      "technique": "T1505.003",
+      "linkedEventIds": ["tpl-sc3"],
+      "tags": []
+    },
+    {
+      "id": "tpl-sc3",
+      "timestampStart": "2025-04-11T02:15:00Z",
+      "hostname": "DB-CLUSTER-01",
+      "username": "svc_backup",
+      "details": "Lateral movement via stolen service account. Database enumeration queries observed.",
+      "category": "lateral-movement",
+      "phase": 3,
+      "technique": "T1021",
+      "linkedEventIds": ["tpl-sc4"],
+      "tags": []
+    },
+    {
+      "id": "tpl-sc4",
+      "timestampStart": "2025-04-11T06:00:00Z",
+      "hostname": "DB-CLUSTER-01",
+      "username": "svc_backup",
+      "details": "Bulk export of customer PII table to external S3-compatible bucket.",
+      "category": "exfiltration",
+      "phase": 4,
+      "technique": "T1567",
+      "linkedEventIds": ["tpl-sc5"],
+      "tags": ["pii"]
+    },
+    {
+      "id": "tpl-sc5",
+      "timestampStart": "2025-04-11T09:45:00Z",
+      "hostname": "SIEM-01",
+      "username": "N/A",
+      "details": "DLP alert on anomalous outbound transfer. Vendor notified and update revoked.",
+      "category": "detection",
+      "phase": 5,
+      "technique": "T1057",
+      "linkedEventIds": [],
+      "tags": []
+    }
+  ]
+}

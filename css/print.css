@@ -1,0 +1,48 @@
+@media print {
+  .app-header,
+  .tabs,
+  .design-options,
+  .header-actions,
+  .modal-backdrop,
+  .status-bar,
+  .edit-toolbar,
+  .output-grid {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .app-main {
+    padding: 0;
+    max-width: none;
+  }
+
+  .panel {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+
+  .design-layout {
+    display: block;
+  }
+
+  .viz-preview-wrap {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    overflow: visible;
+    max-height: none;
+  }
+
+  .viz-ciso,
+  .viz-soc,
+  .viz-compare,
+  .viz-mermaid,
+  .viz-attack-flow {
+    break-inside: avoid;
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "title": "Cloud SaaS Breach (Template)",
+    "subtitle": "OAuth abuse and IAM privilege escalation",
+    "timezone": "UTC",
+    "version": 1
+  },
+  "events": [
+    {
+      "id": "tpl-cb1",
+      "timestampStart": "2025-05-02T11:20:00Z",
+      "hostname": "Azure AD",
+      "username": "admin@corp.example",
+      "details": "Suspicious OAuth consent grant to unknown multi-tenant app requesting Mail.Read and Files.Read.",
+      "category": "initial-access",
+      "phase": 1,
+      "technique": "T1528",
+      "linkedEventIds": ["tpl-cb2"],
+      "tags": ["oauth"]
+    },
+    {
+      "id": "tpl-cb2",
+      "timestampStart": "2025-05-02T11:25:00Z",
+      "hostname": "M365 Exchange",
+      "username": "admin@corp.example",
+      "details": "Mailbox rule created to forward all mail to external address.",
+      "category": "persistence",
+      "phase": 1,
+      "technique": "T1098",
+      "linkedEventIds": ["tpl-cb3"],
+      "tags": []
+    },
+    {
+      "id": "tpl-cb3",
+      "timestampStart": "2025-05-02T12:00:00Z",
+      "hostname": "SharePoint Online",
+      "username": "admin@corp.example",
+      "details": "Mass download of Legal and Finance document libraries via Graph API.",
+      "category": "exfiltration",
+      "phase": 2,
+      "technique": "T1530",
+      "linkedEventIds": ["tpl-cb4"],
+      "tags": []
+    },
+    {
+      "id": "tpl-cb4",
+      "timestampStart": "2025-05-02T12:30:00Z",
+      "hostname": "AWS IAM",
+      "username": "N/A",
+      "details": "Access key created for compromised federated role from stolen session token.",
+      "category": "credential-access",
+      "phase": 3,
+      "technique": "T1550",
+      "linkedEventIds": ["tpl-cb5"],
+      "tags": ["aws"]
+    },
+    {
+      "id": "tpl-cb5",
+      "timestampStart": "2025-05-02T13:10:00Z",
+      "hostname": "Defender XDR",
+      "username": "N/A",
+      "details": "Session revoked, OAuth app blocked, and conditional access policy enforced.",
+      "category": "detection",
+      "phase": 4,
+      "technique": "T1078",
+      "linkedEventIds": [],
+      "tags": []
+    }
+  ]
+}

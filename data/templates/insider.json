@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "title": "Insider Threat (Template)",
+    "subtitle": "Data theft by departing employee — starter template",
+    "timezone": "UTC",
+    "version": 1
+  },
+  "events": [
+    {
+      "id": "tpl-i1",
+      "timestampStart": "2025-08-01T08:00:00Z",
+      "timestampEnd": null,
+      "hostname": "HR-SYSTEM",
+      "username": "N/A",
+      "details": "Employee submitted resignation. Last day scheduled for 2025-08-15.",
+      "category": "reconnaissance",
+      "phase": 1,
+      "technique": "",
+      "linkedEventIds": ["tpl-i2"],
+      "tags": ["hr"]
+    },
+    {
+      "id": "tpl-i2",
+      "timestampStart": "2025-08-05T17:30:00Z",
+      "timestampEnd": null,
+      "hostname": "WORKSTATION-42",
+      "username": "CORP\\jdoe",
+      "details": "Unusual after-hours login. User accessed customer database and export tools.",
+      "category": "credential-access",
+      "phase": 2,
+      "technique": "T1078",
+      "linkedEventIds": ["tpl-i3"],
+      "tags": ["after-hours"]
+    },
+    {
+      "id": "tpl-i3",
+      "timestampStart": "2025-08-05T18:15:00Z",
+      "timestampEnd": null,
+      "hostname": "WORKSTATION-42",
+      "username": "CORP\\jdoe",
+      "details": "Large CSV export of customer PII (12,000 records) to local drive.",
+      "category": "exfiltration",
+      "phase": 2,
+      "technique": "T1048",
+      "linkedEventIds": ["tpl-i4"],
+      "tags": ["data-theft"]
+    },
+    {
+      "id": "tpl-i4",
+      "timestampStart": "2025-08-08T12:00:00Z",
+      "timestampEnd": null,
+      "hostname": "WORKSTATION-42",
+      "username": "CORP\\jdoe",
+      "details": "Data uploaded to personal cloud storage via browser.",
+      "category": "exfiltration",
+      "phase": 3,
+      "technique": "T1567",
+      "linkedEventIds": ["tpl-i5"],
+      "tags": ["cloud-upload"]
+    },
+    {
+      "id": "tpl-i5",
+      "timestampStart": "2025-08-10T09:00:00Z",
+      "timestampEnd": null,
+      "hostname": "WORKSTATION-42",
+      "username": "CORP\\jdoe",
+      "details": "DLP alert triggered on outbound email with attachment to competitor domain.",
+      "category": "detection",
+      "phase": 4,
+      "technique": "",
+      "linkedEventIds": ["tpl-i6"],
+      "tags": ["dlp"]
+    },
+    {
+      "id": "tpl-i6",
+      "timestampStart": "2025-08-10T11:00:00Z",
+      "timestampEnd": null,
+      "hostname": "WORKSTATION-42",
+      "username": "N/A",
+      "details": "Account disabled. Legal and HR notified. Forensic imaging initiated.",
+      "category": "detection",
+      "phase": 4,
+      "technique": "",
+      "linkedEventIds": [],
+      "tags": ["containment"]
+    }
+  ]
+}

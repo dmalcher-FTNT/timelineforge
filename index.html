@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>TimelineForge</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <script type="importmap">
+  {
+    "imports": {
+      "alpinejs": "./vendor/alpinejs.mjs",
+      "d3": "./vendor/d3.mjs",
+      "lz-string": "./vendor/lz-string.mjs",
+      "mammoth": "./vendor/mammoth.mjs",
+      "html2canvas": "./vendor/html2canvas.mjs",
+      "jspdf": "./vendor/jspdf.mjs",
+      "svg2pdf.js": "./vendor/svg2pdf.mjs",
+      "pptxgenjs": "./vendor/pptxgenjs.mjs",
+      "fflate": "./vendor/fflate.mjs",
+      "mermaid": "./vendor/mermaid.esm.min.mjs",
+      "pdfjs-dist/build/pdf.mjs": "./vendor/pdfjs-dist/build/pdf.mjs",
+      "tesseract.js": "./vendor/tesseract/tesseract.esm.min.js"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/print.css" media="print">
+</head>
+<body x-data="app" x-cloak @keydown.window="handleKeydown($event)" @paste.window="handlePaste($event)">
+  <div id="boot-error" class="boot-error" hidden></div>
+  <header class="app-header">
+    <div class="app-header-top">
+      <div class="brand-lockup">
+        <span class="brand-logo-wrap" aria-hidden="true">
+          <img class="brand-logo" :src="brandLogoSrc()" width="44" height="44" alt="">
+        </span>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1 class="brand-title" x-text="appName">TimelineForge</h1>
+            <span class="brand-version" x-text="'v' + appVersion"></span>
+          </div>
+          <p class="brand-subtitle" x-text="appSubtitle">CHAIN OF EVENTS</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="header-save" x-show="draftSavedAt" x-text="draftLabel()"></span>
+        <span class="header-baseline-badge" x-show="compareTimeline?.events?.length" data-tip="A comparison timeline is loaded — use DESIGN Compare or Tools diff">Baseline</span>
+
+        <div class="header-groups">
+          <input type="file" x-ref="openTimelineInput" accept=".json,application/json" @change="handleOpenTimelineFile($event)" hidden>
+
+          <div class="header-dropdown" @click.outside="closeHeaderMenu()">
+            <button
+              type="button"
+              class="btn btn-sm header-btn header-menu-trigger"
+              :class="{ 'is-open': headerMenuOpen === 'file' }"
+              aria-haspopup="menu"
+              :aria-expanded="headerMenuOpen === 'file'"
+              @click.stop="toggleHeaderMenu('file')"
+            >File</button>
+            <div class="header-menu" role="menu" x-show="headerMenuOpen === 'file'" x-cloak @keydown.escape.window="closeHeaderMenu()">
+              <button type="button" role="menuitem" class="header-menu-item" @click="headerFileAction('new')">
+                <span>New timeline…</span><kbd>⌘N</kbd>
+              </button>
+              <button type="button" role="menuitem" class="header-menu-item" @click="headerFileAction('open')">
+                <span>Open…</span><kbd>⌘O</kbd>
+              </button>
+              <div class="header-menu-sep" role="separator"></div>
+              <div class="header-menu-submenu-wrap">
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="header-menu-item header-menu-item-has-submenu"
+                  :class="{ 'is-open': fileSamplesOpen }"
+                  aria-haspopup="menu"
+                  :aria-expanded="fileSamplesOpen"
+                  @click.stop="fileSamplesOpen = !fileSamplesOpen"
+                >
+                  <span>Samples</span>
+                  <span class="header-menu-chevron" aria-hidden="true">›</span>
+                </button>
+                <div class="header-submenu" role="menu" x-show="fileSamplesOpen" x-cloak @click.stop>
+                  <template x-for="s in fileSamples" :key="s.id">
+                    <button type="button" role="menuitem" class="header-menu-item" @click="headerFileAction('sample', s.id)">
+                      <span x-text="s.label"></span>
+                    </button>
+                  </template>
+                </div>
+              </div>
+              <div class="header-menu-sep" role="separator"></div>
+              <button type="button" role="menuitem" class="header-menu-item" @click="headerFileAction('save')">
+                <span>Save JSON…</span><kbd>⌘⇧S</kbd>
+              </button>
+              <button type="button" role="menuitem" class="header-menu-item" @click="headerFileAction('draft')">
+                <span>Save draft</span><kbd>⌘S</kbd>
+              </button>
+              <div class="header-menu-sep" role="separator"></div>
+              <button type="button" role="menuitem" class="header-menu-item" @click="headerFileAction('about')">
+                <span>About TimelineForge…</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="header-dropdown" @click.outside="closeHeaderMenu()">
+            <button
+              type="button"
+              class="btn btn-sm header-btn header-menu-trigger"
+              :class="{ 'is-open': headerMenuOpen === 'tools' }"
+              aria-haspopup="menu"
+              :aria-expanded="headerMenuOpen === 'tools'"
+              @click.stop="toggleHeaderMenu('tools')"
+            >Tools</button>
+            <div class="header-menu header-menu-wide" role="menu" x-show="headerMenuOpen === 'tools'" x-cloak @keydown.escape.window="closeHeaderMenu()">
+              <template x-for="section in headerToolsSections" :key="section.title">
+                <div class="header-menu-section" :class="{ 'header-menu-section-accent': section.accent }">
+                  <p class="header-menu-label" x-text="section.title"></p>
+                  <template x-for="item in section.items" :key="item.action">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="header-menu-item header-menu-item-rich"
+                      :class="{ 'header-menu-item-featured': item.featured }"
+                      @click="headerToolAction(item.action)"
+                    >
+                      <span class="header-menu-item-text">
+                        <strong x-text="item.label"></strong>
+                      </span>
+                    </button>
+                  </template>
+                </div>
+              </template>
+              <template x-if="compareTimeline?.events?.length">
+                <div class="header-menu-section">
+                  <p class="header-menu-label">Baseline diff</p>
+                  <button type="button" role="menuitem" class="header-menu-item header-menu-item-rich" @click="headerToolAction('diff-markdown')">
+                    <span class="header-menu-item-text"><strong>Diff report</strong></span>
+                  </button>
+                  <button type="button" role="menuitem" class="header-menu-item header-menu-item-rich" @click="headerToolAction('diff-csv')">
+                    <span class="header-menu-item-text"><strong>Diff CSV</strong></span>
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="header-dropdown" @click.outside="closeHeaderMenu()">
+            <button
+              type="button"
+              class="btn btn-sm header-btn header-menu-trigger"
+              :class="{ 'is-open': headerMenuOpen === 'export' }"
+              aria-haspopup="menu"
+              :aria-expanded="headerMenuOpen === 'export'"
+              @click.stop="toggleHeaderMenu('export')"
+            >Export</button>
+            <div class="header-menu" role="menu" x-show="headerMenuOpen === 'export'" x-cloak @keydown.escape.window="closeHeaderMenu()">
+              <template x-for="section in headerExportSections" :key="section.title">
+                <div class="header-menu-section">
+                  <p class="header-menu-label" x-text="section.title"></p>
+                  <template x-for="item in section.items" :key="item.type">
+                    <button type="button" role="menuitem" class="header-menu-item" @click="headerExport(item.type)">
+                      <span x-text="item.label"></span>
+                    </button>
+                  </template>
+                </div>
+              </template>
+              <div class="header-menu-sep" role="separator"></div>
+              <button type="button" role="menuitem" class="header-menu-item header-menu-item-footer" @click="headerExport('output-tab')">
+                <span>All export formats…</span>
+              </button>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-sm header-btn header-btn-share" @click="openShareLink()" aria-label="Share" data-tip="Copy a portable link to this timeline" data-tip-pos="below"><span class="ui-icon" aria-hidden="true">🔗</span> Share</button>
+        </div>
+
+        <div class="header-toolbar" aria-label="Display options">
+          <div class="header-dropdown" @click.outside="closeHeaderMenu()">
+            <button
+              type="button"
+              class="btn btn-sm btn-ghost header-btn header-tz-btn header-menu-trigger"
+              :class="{ 'is-open': headerMenuOpen === 'tz' }"
+              aria-haspopup="menu"
+              :aria-expanded="headerMenuOpen === 'tz'"
+              aria-label="Display timezone"
+              @click.stop="toggleHeaderMenu('tz')"
+              data-tip="Times shown in this zone"
+              data-tip-pos="below"
+            >
+              <span class="ui-icon" aria-hidden="true">🌐</span>
+              <span class="header-tz-label" x-text="displayTimezoneShort()"></span>
+            </button>
+            <div class="header-menu header-menu-tz" role="menu" x-show="headerMenuOpen === 'tz'" x-cloak @keydown.escape.window="closeHeaderMenu()">
+              <p class="header-menu-label">Display timezone</p>
+              <template x-for="tz in timezones" :key="tz.id">
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="header-menu-item header-menu-item-check"
+                  :class="{ 'is-selected': timeline.meta.timezone === tz.id }"
+                  @click="setDisplayTimezone(tz.id)"
+                >
+                  <span x-text="tz.label"></span>
+                  <span class="header-menu-check" x-show="timeline.meta.timezone === tz.id" aria-hidden="true">✓</span>
+                </button>
+              </template>
+              <div class="header-menu-sep" role="separator"></div>
+              <button type="button" role="menuitem" class="header-menu-item" @click="useLocalTimezone()">
+                <span>Use local timezone (<span x-text="localTimezoneShort()"></span>)</span>
+              </button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-ghost header-btn header-btn-icon" @click="toggleTheme()" :title="(timeline.meta.theme || 'light') === 'dark' ? 'Light mode' : 'Dark mode'" :data-tip="(timeline.meta.theme || 'light') === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'" data-tip-pos="below">
+            <span class="ui-icon" aria-hidden="true" x-text="(timeline.meta.theme || 'light') === 'dark' ? '☀' : '☾'"></span>
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost header-btn header-btn-icon" @click="showShortcutsHelp = true" data-tip="Keyboard shortcuts (⌘/Ctrl + ?)" data-tip-pos="below">
+            <span class="ui-icon" aria-hidden="true">?</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <section class="incident-panel" aria-label="Incident details">
+      <div class="incident-panel-primary">
+        <label class="incident-label" for="incident-title-input">Timeline title</label>
+        <div class="incident-title-wrap">
+          <input
+            id="incident-title-input"
+            type="text"
+            class="incident-title-input"
+            x-model="timeline.meta.title"
+            @input="onIncidentMetaChange()"
+            placeholder="Export title"
+            maxlength="120"
+          >
+          <span class="incident-badge" x-show="filterIsActive() && timeline.events.length">Filtered</span>
+          <button type="button" class="incident-quality-badge" x-show="analysis && timeline.events.length" @click="openQualityPanel()" :class="(analysis?.score ?? 0) >= 80 ? 'quality-good' : (analysis?.score ?? 0) >= 60 ? 'quality-warn' : 'quality-poor'" :data-tip="qualityIssueCount() + ' issue(s), ' + qualityRecommendationCount() + ' recommendation(s) — click for details'">
+            <span x-text="analysis?.score ?? '—'"></span>/100
+          </button>
+        </div>
+      </div>
+
+      <div class="incident-overview" x-show="timeline.events.length">
+        <div class="incident-overview-grid">
+          <section class="incident-window incident-window-feature" aria-label="Activity window">
+            <div class="incident-window-head">
+              <h3 class="incident-section-label"><span class="section-icon" aria-hidden="true">⏱</span> Activity window</h3>
+              <span class="incident-window-meta" x-show="incidentStats().dwellTime !== '—'" :data-tip="'First seen to last seen (' + formatStatDate(incidentStats().earliest) + ' → ' + formatStatDate(incidentStats().latest) + ')'" x-text="incidentStats().dwellTime"></span>
+            </div>
+
+            <template x-if="activityPreview()">
+              <div class="activity-preview">
+                <div
+                  class="activity-preview-chart"
+                  role="img"
+                  :aria-label="'Timeline preview: ' + timeline.events.length + ' events from first to last activity'"
+                >
+                  <div class="activity-preview-density" aria-hidden="true">
+                    <template x-for="(bucket, bi) in activityPreview().buckets" :key="'ab-' + bi">
+                      <span
+                        class="activity-preview-bar"
+                        :style="`left:${bucket.leftPct}%; width:${bucket.widthPct}%; height:${Math.max(6, bucket.heightPct)}%`"
+                      ></span>
+                    </template>
+                  </div>
+                  <div
+                    class="activity-preview-lanes"
+                    aria-hidden="true"
+                    :style="'--lane-count:' + activityPreview().laneCount"
+                  >
+                    <template x-for="marker in activityPreview().markers" :key="'am-' + marker.id">
+                      <button
+                        type="button"
+                        class="activity-preview-marker"
+                        :class="{ 'is-point': marker.isPoint }"
+                        :style="`--marker-row:${marker.row}; left:${marker.leftPct}%; width:${marker.widthPct}%; background:${marker.color}`"
+                        :title="marker.title"
+                        @click="jumpToEvent(marker.id)"
+                      ></button>
+                    </template>
+                  </div>
+                  <div class="activity-preview-axis-line" aria-hidden="true"></div>
+                </div>
+                <div class="activity-preview-ticks" aria-hidden="true">
+                  <template x-for="(tick, ti) in activityPreview().ticks" :key="'at-' + ti">
+                    <span class="activity-preview-tick" :style="`left:${tick.leftPct}%`" x-text="tick.label"></span>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <div class="incident-window-endpoints">
+              <div class="incident-window-point">
+                <span class="incident-point-label">First seen</span>
+                <time class="incident-point-value" x-text="formatStatDate(incidentStats().earliest)"></time>
+              </div>
+              <div class="incident-window-point incident-window-point-end">
+                <span class="incident-point-label">Last seen</span>
+                <time class="incident-point-value" x-text="formatStatDate(incidentStats().latest)"></time>
+              </div>
+            </div>
+          </section>
+
+          <section class="incident-scope" aria-label="Timeline scope">
+            <h3 class="incident-section-label"><span class="section-icon" aria-hidden="true">◎</span> Scope</h3>
+            <ul class="incident-scope-list">
+              <li class="incident-scope-item" data-tip="Events in the current view">
+                <span class="incident-scope-value" x-text="incidentEventCount()"></span>
+                <span class="incident-scope-name">Events</span>
+              </li>
+              <li class="incident-scope-item" data-tip="Unique hostnames across events">
+                <span class="incident-scope-value" x-text="incidentStats().hostCount"></span>
+                <span class="incident-scope-name">Hosts</span>
+              </li>
+              <li class="incident-scope-item" data-tip="Unique usernames across events">
+                <span class="incident-scope-value" x-text="incidentStats().userCount"></span>
+                <span class="incident-scope-name">Users</span>
+              </li>
+            </ul>
+            <p class="incident-scope-extra" x-show="incidentStats().linkedCount > 0" data-tip="Events explicitly linked to a prior event">
+              <span x-text="incidentStats().linkedCount"></span> linked events
+            </p>
+            <ul class="incident-top-entities" x-show="incidentStats().topHosts.length">
+              <li class="incident-top-label"><span class="section-icon" aria-hidden="true">🖥</span> Top hosts</li>
+              <template x-for="h in incidentStats().topHosts" :key="'h-' + h.name">
+                <li class="incident-top-row"><span :data-tip="h.name + ' — ' + h.count + ' event(s)'" x-text="h.name"></span> <strong x-text="h.count"></strong></li>
+              </template>
+            </ul>
+            <ul class="incident-top-entities" x-show="incidentStats().topUsers.length">
+              <li class="incident-top-label"><span class="section-icon" aria-hidden="true">👤</span> Top users</li>
+              <template x-for="u in incidentStats().topUsers" :key="'u-' + u.name">
+                <li class="incident-top-row"><span :data-tip="u.name + ' — ' + u.count + ' event(s)'" x-text="u.name.length > 20 ? u.name.slice(0, 18) + '…' : u.name"></span> <strong x-text="u.count"></strong></li>
+              </template>
+            </ul>
+          </section>
+
+          <section class="incident-attack-mix" aria-label="Attack mix">
+            <div class="incident-section-head">
+              <h3 class="incident-section-label"><span class="section-icon" aria-hidden="true">⚡</span> Attack mix</h3>
+              <span class="incident-section-meta" x-show="incidentStats().techniqueCount" data-tip="Distinct MITRE ATT&amp;CK technique IDs in timeline" x-text="incidentStats().techniqueCount + ' MITRE techniques'"></span>
+            </div>
+            <ul class="incident-cat-list">
+              <template x-for="c in incidentStats().topCategories" :key="c.key">
+                <li class="incident-cat-item" :data-tip="c.label + ' — ' + c.count + ' event(s)'">
+                  <span class="incident-cat-label">
+                    <i class="incident-cat-swatch" :style="'background:' + c.color"></i>
+                    <span x-text="c.label"></span>
+                  </span>
+                  <span class="incident-cat-bar-wrap" aria-hidden="true">
+                    <span class="incident-cat-bar" :style="'width:' + incidentCatBarWidth(c.count) + '%; background:' + c.color"></span>
+                  </span>
+                  <span class="incident-cat-n" x-text="c.count"></span>
+                </li>
+              </template>
+            </ul>
+            <p class="incident-cat-more" x-show="incidentStats().categoryCount > incidentStats().topCategories.length">
+              +<span x-text="incidentStats().categoryCount - incidentStats().topCategories.length"></span> more categor<span x-text="incidentStats().categoryCount - incidentStats().topCategories.length === 1 ? 'y' : 'ies'"></span>
+            </p>
+          </section>
+        </div>
+
+        <p class="incident-filter-note" x-show="filterIsActive()">
+          Metrics reflect active EDIT filters ·
+          <button type="button" class="btn-link incident-filter-clear" @click="clearEditFilters()">Clear filters</button>
+        </p>
+      </div>
+
+    </section>
+
+    <nav class="tabs">
+      <button type="button" class="tab-btn" :class="{ active: tab === 'input' }" @click="setTab('input')">INPUT</button>
+      <button type="button" class="tab-btn" :class="{ active: tab === 'edit' }" @click="setTab('edit')">EDIT</button>
+      <button type="button" class="tab-btn" :class="{ active: tab === 'design' }" @click="setTab('design')">DESIGN</button>
+      <button type="button" class="tab-btn" :class="{ active: tab === 'output' }" @click="setTab('output')">OUTPUT</button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+    <!-- INPUT -->
+    <section class="panel tab-panel input-panel" :class="{ 'is-active': tab === 'input' }">
+      <div class="input-header">
+        <h2 class="panel-heading">Source data</h2>
+      </div>
+
+      <div class="input-modes">
+        <button type="button" class="chip" :class="{ active: inputMode === 'manual' }" @click="inputMode = 'manual'">Manual snippets</button>
+        <button type="button" class="chip" :class="{ active: inputMode === 'table' }" @click="inputMode = 'table'">Markdown table</button>
+        <button type="button" class="chip" :class="{ active: inputMode === 'import' }" @click="inputMode = 'import'">IR tool import</button>
+        <button type="button" class="chip" :class="{ active: inputMode === 'report' }" @click="inputMode = 'report'">Word / PDF report</button>
+      </div>
+
+      <div class="input-workspace">
+        <div class="input-mode-panel">
+          <template x-if="inputMode === 'manual'">
+            <div class="input-mode-block">
+              <label for="input-source-text">Free-text snippets</label>
+              <textarea id="input-source-text" class="input-source-textarea" rows="16" x-model="inputText" placeholder="2024-10-03 10:19 — HOST-001 — Successful phishing via Teams…"></textarea>
+            </div>
+          </template>
+          <template x-if="inputMode === 'table'">
+            <div class="input-mode-block">
+              <label for="input-source-text">Markdown table from IR report</label>
+              <textarea id="input-source-text" class="input-source-textarea" rows="18" x-model="inputText" placeholder="| DATE/TIME | HOSTNAME | USERNAME | DETAILS |&#10;| --- | --- | --- | --- |&#10;| 2024-10-03 10:19 | HOST-001 | jsmith | Phishing link clicked |"></textarea>
+            </div>
+          </template>
+          <template x-if="inputMode === 'import'">
+            <div class="input-mode-block">
+              <div class="input-import-toolbar">
+                <div class="input-import-format">
+                  <label for="input-import-tool">IR tool format</label>
+                  <select id="input-import-tool" x-model="importTool">
+                    <template x-for="t in irTools" :key="t.id">
+                      <option :value="t.id" x-text="t.name"></option>
+                    </template>
+                  </select>
+                </div>
+              </div>
+              <label for="input-source-text">Export data</label>
+              <textarea id="input-source-text" class="input-source-textarea" rows="16" x-model="inputText" placeholder="Paste tool export or drop a .json / .csv file…"></textarea>
+              <div
+                class="drop-zone input-import-drop"
+                @dragover="onDropZoneDragOver($event)"
+                @dragleave="onDropZoneDragLeave($event)"
+                @drop="onFileDrop($event)"
+              >
+                <input type="file" accept=".json,.csv,.txt,.tsv" @change="onFileUpload($event)" id="import-file-input">
+                <label for="import-file-input" class="drop-zone-label">
+                  <strong>Drop export file here</strong>
+                </label>
+              </div>
+            </div>
+          </template>
+          <template x-if="inputMode === 'report'">
+            <div class="input-mode-block">
+              <label for="input-source-text">Report text</label>
+              <div
+                class="drop-zone"
+                @dragover="onDropZoneDragOver($event)"
+                @dragleave="onDropZoneDragLeave($event)"
+                @drop="onFileDrop($event)"
+              >
+                <input type="file" accept=".txt,.md,.pdf,.docx" @change="onFileUpload($event)" id="report-file-input">
+                <label for="report-file-input" class="drop-zone-label">
+                  <strong>Drop PDF or report here</strong>
+                </label>
+              </div>
+              <p x-show="pdfMeta" class="pdf-meta" x-text="pdfMeta ? `Loaded: ${pdfMeta.name} · ${pdfMeta.pages} pages · ${pdfMeta.chars.toLocaleString()} chars${pdfMeta.ocr ? ' · OCR' : ''}` : ''"></p>
+              <div class="ocr-banner" x-show="pdfNeedsOcr">
+                <label class="ocr-lang-row">
+                  <span>OCR language</span>
+                  <select x-model="ocrLanguage">
+                    <template x-for="lang in ocrLanguages" :key="lang.id">
+                      <option :value="lang.id" x-text="lang.label"></option>
+                    </template>
+                  </select>
+                </label>
+                <button type="button" class="btn btn-sm" @click="runPdfOcr()" :disabled="busy">Run OCR</button>
+              </div>
+              <textarea id="input-source-text" class="input-source-textarea" rows="16" x-model="inputText" placeholder="Report text"></textarea>
+            </div>
+          </template>
+        </div>
+
+        <div class="input-feedback">
+          <p x-show="inputError" class="input-error" x-text="inputError"></p>
+          <p x-show="inputParseStats && inputParseStats.skipped" class="input-parse-stats">
+            Parsed <strong x-text="inputParseStats?.parsed"></strong> of <strong x-text="inputParseStats?.attempted"></strong> lines
+            (<span x-text="inputParseStats?.skipped"></span> skipped)
+          </p>
+          <p x-show="statusMessage && !inputError && !busy" class="input-status" x-text="statusMessage"></p>
+        </div>
+      </div>
+
+      <div class="status-bar" x-show="busy">
+        <span x-text="statusMessage"></span>
+        <div class="progress-track"><div class="progress-fill" :style="`width:${progress}%`"></div></div>
+      </div>
+    </section>
+
+    <!-- EDIT -->
+    <section class="panel tab-panel edit-panel" :class="{ 'is-active': tab === 'edit' }">
+      <div class="edit-header">
+        <div>
+          <h2 style="margin:0">Timeline events</h2>
+          <p class="edit-subtitle" x-show="timeline.events.length">
+            <strong x-text="editEvents().length"></strong> / <strong x-text="timeline.events.length"></strong>
+            <span x-show="filterIsActive()"> · filtered</span>
+            <span x-show="analysis"> · <strong x-text="analysis ? analysis.score : ''"></strong>/100</span>
+            <span x-show="displayTimezone() !== 'UTC'"> · <strong x-text="displayTimezoneLabel()"></strong></span>
+          </p>
+        </div>
+        <div class="edit-header-actions">
+          <button type="button" class="btn btn-sm btn-ghost" @click="undo()" :disabled="!canUndo()" title="Undo (⌘Z)">↶</button>
+          <button type="button" class="btn btn-sm btn-ghost" @click="redo()" :disabled="!canRedo()" title="Redo (⌘⇧Z)">↷</button>
+          <button type="button" class="btn btn-sm btn-ghost" @click="setTab('input')" title="View synced source text">↩ Source</button>
+          <button type="button" class="btn btn-sm" @click="addEvent()">+ Add</button>
+          <button type="button" class="btn btn-sm btn-ghost" @click="sortEventsByDate()" title="Chronological order">↕ Sort</button>
+        </div>
+      </div>
+
+      <div class="selection-bar" x-show="selectedEventIds.length">
+        <span><strong x-text="selectedEventIds.length"></strong> selected</span>
+        <button type="button" class="btn btn-sm btn-ghost" @click="bulkDeleteSelected()">Delete selected</button>
+        <button type="button" class="btn btn-sm btn-ghost" @click="clearSelection()">Clear</button>
+      </div>
+
+      <div class="bulk-edit-bar" x-show="filterIsActive() && !selectedEventIds.length">
+        <span>Bulk edit <strong x-text="filteredEditEvents().length"></strong> filtered:</span>
+        <select @change="bulkApplyCategory($event.target.value); $event.target.value = ''">
+          <option value="">Set category…</option>
+          <template x-for="(cat, key) in categories" :key="key">
+            <option :value="key" x-text="cat.label"></option>
+          </template>
+        </select>
+        <select @change="bulkApplyPhase(+$event.target.value); $event.target.value = ''">
+          <option value="">Set phase…</option>
+          <template x-for="p in activePhases()" :key="p.id">
+            <option :value="p.id" x-text="'Phase ' + p.id + ' — ' + p.name"></option>
+          </template>
+        </select>
+      </div>
+
+      <div class="edit-workspace">
+        <aside class="edit-sidebar">
+          <div class="edit-sidebar-filters">
+          <section class="quality-sidebar" x-show="analysis && timeline.events.length" x-ref="qualitySection">
+            <div class="quality-sidebar-head">
+              <h3>Quality <span class="quality-score-pill" x-text="(analysis?.score ?? '—') + '/100'"></span></h3>
+              <button type="button" class="btn btn-xs btn-ghost" @click="openQualityPanel()" title="Full quality report">Expand</button>
+            </div>
+
+            <div class="quality-group" x-show="analysisIssuesList().length">
+              <h4 class="quality-group-title">Issues <span class="quality-count" x-text="analysisIssuesList().length"></span></h4>
+              <template x-for="item in analysisIssuesList()" :key="item.message">
+                <button type="button" class="quality-item" :class="item.severity" @click="goToAnalysisItem(item)" :disabled="!item.eventId">
+                  <span class="quality-item-label" x-text="item.ruleLabel"></span>
+                  <span class="quality-item-message" x-text="item.message"></span>
+                  <span class="quality-item-go" x-show="item.eventId">Go to event #<span x-text="item.eventIndex"></span> →</span>
+                </button>
+              </template>
+            </div>
+
+            <div class="quality-group" x-show="analysisRecommendationsList().length">
+              <h4 class="quality-group-title">Recommendations <span class="quality-count" x-text="analysisRecommendationsList().length"></span></h4>
+              <template x-for="item in analysisRecommendationsList()" :key="item.message">
+                <div class="quality-item-wrap">
+                  <button type="button" class="quality-item" :class="item.severity || 'info'" @click="goToAnalysisItem(item)" :disabled="!item.eventId">
+                    <span class="quality-item-label" x-text="item.ruleLabel"></span>
+                    <span class="quality-item-message" x-text="item.message"></span>
+                    <span class="quality-item-go" x-show="item.eventId">Go to event #<span x-text="item.eventIndex"></span> →</span>
+                  </button>
+                  <button type="button" class="btn btn-xs quality-apply" x-show="item.type === 'category' || item.type === 'technique'" @click.stop="applyAnalysisSuggestion(item)">Apply</button>
+                </div>
+              </template>
+            </div>
+          </section>
+          <div class="filter-group filter-group-scroll">
+            <h3>Hosts</h3>
+            <div class="filter-chips">
+              <button type="button" class="filter-chip" :class="{ active: !editHostFilter }" @click="editHostFilter = ''">All</button>
+              <template x-for="h in uniqueHostnames()" :key="h">
+                <button type="button" class="filter-chip" :class="{ active: editHostFilter === h }" @click="selectHostFilter(h)">
+                  <span x-text="h"></span>
+                  <span class="filter-count" x-text="hostEventCount(h)"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+          <div class="filter-group filter-group-scroll">
+            <h3>Users</h3>
+            <div class="filter-chips">
+              <button type="button" class="filter-chip" :class="{ active: !editUserFilter }" @click="editUserFilter = ''">All</button>
+              <template x-for="u in uniqueUsernames()" :key="u">
+                <button type="button" class="filter-chip" :class="{ active: editUserFilter === u }" @click="selectUserFilter(u)">
+                  <span x-text="u.length > 18 ? u.slice(0, 16) + '…' : u"></span>
+                  <span class="filter-count" x-text="userEventCount(u)"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+          <div class="filter-group">
+            <h3>Category</h3>
+            <div class="filter-chips">
+              <button type="button" class="filter-chip" :class="{ active: !editCategoryFilter }" @click="editCategoryFilter = ''">All</button>
+              <template x-for="(cat, key) in categories" :key="key">
+                <button type="button" class="filter-chip" :class="{ active: editCategoryFilter === key }" @click="selectCategoryFilter(key)" x-text="cat.label"></button>
+              </template>
+            </div>
+          </div>
+          <div class="filter-group" x-show="uniqueTags().length">
+            <h3>Tags</h3>
+            <div class="filter-chips filter-chips-scroll">
+              <button type="button" class="filter-chip" :class="{ active: !editTagFilter }" @click="editTagFilter = ''">All</button>
+              <template x-for="t in uniqueTags()" :key="t">
+                <button type="button" class="filter-chip" :class="{ active: editTagFilter === t }" @click="selectTagFilter(t)">
+                  <span x-text="t.length > 16 ? t.slice(0, 14) + '…' : t"></span>
+                  <span class="filter-count" x-text="tagEventCount(t)"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+          <div class="diff-panel" x-show="compareTimeline?.events?.length && showDiffPanel">
+            <h3>Timeline diff</h3>
+            <p class="diff-summary" x-text="diffSummaryText()"></p>
+            <p class="diff-baseline" x-show="compareLabel">
+              Baseline: <span x-text="compareLabel"></span>
+            </p>
+            <template x-if="timelineDiff()?.added?.length">
+              <div class="diff-section diff-added">
+                <h4 x-text="'Added (' + timelineDiff().added.length + ')'"></h4>
+                <template x-for="e in timelineDiff().added.slice(0, 5)" :key="e.id">
+                  <div class="diff-row" x-text="(e.timestampStart || '').slice(0, 16) + ' · ' + (e.details || '').slice(0, 40)"></div>
+                </template>
+              </div>
+            </template>
+            <template x-if="timelineDiff()?.removed?.length">
+              <div class="diff-section diff-removed">
+                <h4 x-text="'Removed (' + timelineDiff().removed.length + ')'"></h4>
+                <template x-for="e in timelineDiff().removed.slice(0, 5)" :key="e.id">
+                  <div class="diff-row" x-text="(e.timestampStart || '').slice(0, 16) + ' · ' + (e.details || '').slice(0, 40)"></div>
+                </template>
+              </div>
+            </template>
+            <template x-if="timelineDiff()?.changed?.length">
+              <div class="diff-section diff-changed">
+                <h4 x-text="'Changed (' + timelineDiff().changed.length + ')'"></h4>
+                <template x-for="(c, ci) in timelineDiff().changed.slice(0, 5)" :key="diffChangeKey(c, ci)">
+                  <div class="diff-row" x-text="diffChangeLabel(c)"></div>
+                </template>
+              </div>
+            </template>
+            <button type="button" class="btn btn-sm btn-ghost" @click="clearCompareTimeline()">Clear baseline</button>
+          </div>
+          </div>
+          <div class="edit-sidebar-footer">
+          <button type="button" class="btn btn-sm btn-ghost filter-clear" x-show="filterIsActive()" @click="clearEditFilters()">Clear filters</button>
+          <button type="button" class="btn btn-sm btn-ghost" style="width:100%;margin-top:.35rem" @click="saveCurrentAsBaseline()">Save as baseline</button>
+          </div>
+        </aside>
+
+        <div class="edit-main">
+          <input type="search" class="edit-search-full" placeholder="Search details, MITRE, tags…" x-model="editSearch">
+
+          <div class="edit-table-controls">
+            <div class="edit-view-toggle" role="group" aria-label="Edit view mode">
+              <button type="button" class="btn btn-xs btn-ghost" :class="{ active: editViewMode === 'simple' }" @click="setEditViewMode('simple')">Simple</button>
+              <button type="button" class="btn btn-xs btn-ghost" :class="{ active: editViewMode === 'expert' }" @click="setEditViewMode('expert')">Expert</button>
+            </div>
+            <span class="edit-table-controls-meta" x-show="editEvents().length">
+              <strong x-text="editEvents().length"></strong> events · j/k navigate · click row to expand
+            </span>
+          </div>
+
+          <div class="edit-simple-list" x-show="editViewMode === 'simple'">
+            <template x-for="evt in editEvents()" :key="evt.id">
+              <article
+                class="edit-simple-item"
+                :data-event-id="evt.id"
+                :class="{ 'is-expanded': isEventExpanded(evt.id), 'drag-over': isDragOver(evt), 'dragging': isDragging(evt), 'row-filtered': filterIsActive(), 'row-selected': isEventSelected(evt.id), 'row-focused': isEventFocused(evt.id) }"
+                @dragover="onDragOver($event, evt)"
+                @dragleave="onDragLeave()"
+                @drop="onDrop(evt)"
+              >
+                <div class="edit-simple-row" @click="toggleEditExpanded(evt.id)" role="button" tabindex="0" @keydown.enter.prevent="toggleEditExpanded(evt.id)">
+                  <input type="checkbox" class="edit-simple-check" :checked="isEventSelected(evt.id)" @click.stop @change="toggleEventSelection(evt.id, $event.target.checked)" title="Select event">
+                  <span class="drag-handle" :draggable="!filterIsActive()" @click.stop @dragstart="onDragStart($event, evt)" @dragend="onDragEnd()" title="Drag to reorder">⠿</span>
+                  <span class="edit-simple-num" x-text="eventIndex(evt)"></span>
+                  <time class="edit-simple-time" x-text="eventSummaryTime(evt)" :title="evt.timestampStart"></time>
+                  <span class="edit-simple-host" x-text="evt.hostname || '—'" :title="evt.hostname"></span>
+                  <span class="edit-simple-user" x-text="evt.username || '—'" :title="evt.username"></span>
+                  <span class="edit-simple-cat" :style="categoryStyle(evt.category)" x-text="categoryLabel(evt.category)"></span>
+                  <span class="edit-simple-details" x-text="eventSummaryDetails(evt)"></span>
+                  <span class="edit-simple-expand" :class="{ 'is-open': isEventExpanded(evt.id) }" aria-hidden="true">▾</span>
+                  <div class="edit-simple-actions" @click.stop>
+                    <button type="button" class="btn btn-xs btn-ghost" @click="duplicateEvent(evt.id)" title="Duplicate">⧉</button>
+                    <button type="button" class="btn btn-xs btn-ghost" @click="deleteEvent(evt.id)" title="Delete">✕</button>
+                  </div>
+                </div>
+
+                <div class="edit-simple-body" x-show="isEventExpanded(evt.id)" x-cloak @click.stop>
+                  <div class="edit-simple-body-grid">
+                    <label class="edit-event-field">
+                      <span>Start</span>
+                      <input type="text" class="ts-input" :value="formatEditTimestamp(evt.timestampStart)" @change="updateEventTimestamp(evt.id, 'timestampStart', $event.target.value)" :title="evt.timestampStart">
+                    </label>
+                    <label class="edit-event-field">
+                      <span>End</span>
+                      <input type="text" class="ts-input" :value="formatEditTimestamp(evt.timestampEnd)" @change="updateEventTimestamp(evt.id, 'timestampEnd', $event.target.value)" :title="evt.timestampEnd || ''" placeholder="—">
+                    </label>
+                    <label class="edit-event-field">
+                      <span>Host</span>
+                      <input type="text" :value="evt.hostname" @input="updateEvent(evt.id, 'hostname', $event.target.value)">
+                    </label>
+                    <label class="edit-event-field">
+                      <span>User</span>
+                      <input type="text" :value="evt.username" @input="updateEvent(evt.id, 'username', $event.target.value)">
+                    </label>
+                    <label class="edit-event-field">
+                      <span>Category</span>
+                      <select :value="evt.category" @change="updateEvent(evt.id, 'category', $event.target.value)">
+                        <template x-for="(cat, key) in categories" :key="key">
+                          <option :value="key" x-text="cat.label"></option>
+                        </template>
+                      </select>
+                    </label>
+                    <label class="edit-event-field">
+                      <span>Phase</span>
+                      <select :value="evt.phase" @change="updateEvent(evt.id, 'phase', +$event.target.value)">
+                        <template x-for="p in activePhases()" :key="p.id">
+                          <option :value="p.id" x-text="'Phase ' + p.id"></option>
+                        </template>
+                      </select>
+                    </label>
+                    <label class="edit-event-field">
+                      <span>MITRE</span>
+                      <input type="text" list="mitre-list" :value="evt.technique || ''" placeholder="T1566" @input="updateEvent(evt.id, 'technique', $event.target.value)">
+                    </label>
+                    <label class="edit-event-field">
+                      <span>Source</span>
+                      <input type="text" :value="evt.source || ''" placeholder="EDR, SIEM…" @input="updateEvent(evt.id, 'source', $event.target.value)">
+                    </label>
+                    <label class="edit-event-field">
+                      <span>Evidence</span>
+                      <input type="text" :value="evt.evidence || ''" placeholder="Ticket, hash…" @input="updateEvent(evt.id, 'evidence', $event.target.value)">
+                    </label>
+                    <label class="edit-event-field">
+                      <span>Tags</span>
+                      <input type="text" :value="(evt.tags || []).join(', ')" placeholder="tag1, tag2" @input="updateEvent(evt.id, 'tags', $event.target.value)">
+                    </label>
+                    <label class="edit-event-field edit-event-field-links">
+                      <span>Links</span>
+                      <div class="edit-event-links-row">
+                        <input type="text" :value="(evt.linkedEventIds || []).join(', ')" placeholder="evt-002" @input="updateEvent(evt.id, 'linkedEventIds', $event.target.value)">
+                        <button type="button" class="btn btn-xs btn-ghost" @click="linkToPrevious(evt.id)" title="Link to previous event">←</button>
+                      </div>
+                    </label>
+                    <label class="edit-event-field edit-event-field-details edit-event-field-span">
+                      <span>Details</span>
+                      <textarea rows="4" :value="evt.details" @input="updateEvent(evt.id, 'details', $event.target.value)"></textarea>
+                    </label>
+                  </div>
+                </div>
+              </article>
+            </template>
+            <p x-show="!editEvents().length" class="edit-empty">No events match the current filters.</p>
+          </div>
+
+          <div class="edit-table-wrap edit-table-full" x-show="editViewMode === 'expert'">
+            <table class="edit-table">
+              <thead>
+                <tr>
+                  <th class="col-check">
+                    <input type="checkbox" :checked="allVisibleSelected()" @change="toggleSelectAllVisible($event.target.checked)" title="Select visible rows">
+                  </th>
+                  <th class="col-drag"></th>
+                  <th>#</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Hostname</th>
+                  <th>Username</th>
+                  <th>Category</th>
+                  <th>Phase</th>
+                  <th>MITRE</th>
+                  <th>Source</th>
+                  <th>Evidence</th>
+                  <th>Links</th>
+                  <th>Tags</th>
+                  <th>Details</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="evt in editEvents()" :key="evt.id">
+                  <tr
+                    :data-event-id="evt.id"
+                    :class="{ 'drag-over': isDragOver(evt), 'dragging': isDragging(evt), 'row-filtered': filterIsActive(), 'row-selected': isEventSelected(evt.id), 'row-focused': isEventFocused(evt.id) }"
+                    @dragover="onDragOver($event, evt)"
+                    @dragleave="onDragLeave()"
+                    @drop="onDrop(evt)"
+                  >
+                    <td class="col-check">
+                      <input type="checkbox" :checked="isEventSelected(evt.id)" @change="toggleEventSelection(evt.id, $event.target.checked)">
+                    </td>
+                    <td class="col-drag">
+                      <span class="drag-handle" :draggable="!filterIsActive()" @dragstart="onDragStart($event, evt)" @dragend="onDragEnd()">⠿</span>
+                    </td>
+                    <td x-text="eventIndex(evt)"></td>
+                    <td>
+                      <input type="text" class="ts-input" :value="formatEditTimestamp(evt.timestampStart)" @change="updateEventTimestamp(evt.id, 'timestampStart', $event.target.value)" :title="evt.timestampStart">
+                    </td>
+                    <td>
+                      <input type="text" class="ts-input" :value="formatEditTimestamp(evt.timestampEnd)" @change="updateEventTimestamp(evt.id, 'timestampEnd', $event.target.value)" :title="evt.timestampEnd || ''" placeholder="—">
+                    </td>
+                    <td><input type="text" :value="evt.hostname" @input="updateEvent(evt.id, 'hostname', $event.target.value)"></td>
+                    <td><input type="text" :value="evt.username" @input="updateEvent(evt.id, 'username', $event.target.value)"></td>
+                    <td>
+                      <select :value="evt.category" @change="updateEvent(evt.id, 'category', $event.target.value)">
+                        <template x-for="(cat, key) in categories" :key="key">
+                          <option :value="key" x-text="cat.label"></option>
+                        </template>
+                      </select>
+                    </td>
+                    <td>
+                      <select :value="evt.phase" @change="updateEvent(evt.id, 'phase', +$event.target.value)">
+                        <template x-for="p in activePhases()" :key="p.id">
+                          <option :value="p.id" x-text="p.id"></option>
+                        </template>
+                      </select>
+                    </td>
+                    <td><input type="text" list="mitre-list" :value="evt.technique || ''" placeholder="T1566" @input="updateEvent(evt.id, 'technique', $event.target.value)"></td>
+                    <td><input type="text" class="source-input" :value="evt.source || ''" placeholder="EDR, SIEM…" @input="updateEvent(evt.id, 'source', $event.target.value)"></td>
+                    <td><input type="text" class="evidence-input" :value="evt.evidence || ''" placeholder="Ticket, hash…" @input="updateEvent(evt.id, 'evidence', $event.target.value)"></td>
+                    <td class="col-links">
+                      <input type="text" class="links-input" :value="(evt.linkedEventIds || []).join(', ')" placeholder="evt-…" @input="updateEvent(evt.id, 'linkedEventIds', $event.target.value)">
+                      <button type="button" class="btn btn-xs btn-ghost" @click="linkToPrevious(evt.id)" title="Link to previous event">←</button>
+                    </td>
+                    <td class="col-tags">
+                      <input type="text" class="tags-input" :value="(evt.tags || []).join(', ')" placeholder="tag1, tag2" @input="updateEvent(evt.id, 'tags', $event.target.value)">
+                    </td>
+                    <td><textarea rows="2" :value="evt.details" @input="updateEvent(evt.id, 'details', $event.target.value)"></textarea></td>
+                    <td class="edit-actions">
+                      <button type="button" class="btn btn-sm btn-ghost" @click="duplicateEvent(evt.id)" title="Duplicate">⧉</button>
+                      <button type="button" class="btn btn-sm btn-ghost" @click="deleteEvent(evt.id)">✕</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <p x-show="!editEvents().length" class="edit-empty">No events match the current filters.</p>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="status-bar" x-show="busy">
+        <span x-text="statusMessage"></span>
+        <div class="progress-track"><div class="progress-fill" :style="`width:${progress}%`"></div></div>
+      </div>
+    </section>
+
+    <!-- DESIGN -->
+    <section class="panel tab-panel design-panel" :class="{ 'is-active': tab === 'design' }">
+      <div class="design-workspace">
+        <header class="design-toolbar" x-show="timeline.events.length">
+          <div class="design-toolbar-selects">
+            <label class="design-toolbar-field">
+              <span class="design-toolbar-label">Visualization</span>
+              <select class="design-toolbar-select" x-model="vizType">
+                <template x-for="v in vizTypes" :key="v.id">
+                  <option :value="v.id" x-text="v.label"></option>
+                </template>
+              </select>
+            </label>
+            <label class="design-toolbar-field" x-show="showVizStylePicker()">
+              <span class="design-toolbar-label" x-text="designStyleLabel()"></span>
+              <select class="design-toolbar-select" x-model="vizStyle">
+                <template x-for="s in availableVizStyles()" :key="s.id">
+                  <option :value="s.id" x-text="s.label"></option>
+                </template>
+              </select>
+            </label>
+          </div>
+          <div class="design-toolbar-export" x-show="timeline.events.length">
+            <span class="design-toolbar-label">Export preview</span>
+            <div class="design-export-btns">
+              <button type="button" class="btn btn-sm btn-primary" @click="exportPreviewAs('png')" data-tip="PNG image of this preview" data-tip-pos="below">PNG</button>
+              <button type="button" class="btn btn-sm" @click="exportPreviewAs('pdf')" data-tip="PDF document" data-tip-pos="below">PDF</button>
+              <button type="button" class="btn btn-sm" @click="exportPreviewAs('svg')" data-tip="SVG vector graphic" data-tip-pos="below">SVG</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="design-layout" :class="{ 'design-layout-full': vizType !== 'compare' }">
+        <aside class="design-options" x-show="vizType === 'compare'">
+          <h3 class="sidebar-heading">Comparison timeline</h3>
+          <input type="file" accept=".json" @change="loadCompareTimeline($event)">
+          <p x-show="compareLabel" style="font-size:.78rem;color:var(--muted)">
+            Loaded: <span x-text="compareLabel"></span>
+            <button class="btn-link" @click="clearCompareTimeline()">clear</button>
+          </p>
+        </aside>
+        <div class="design-preview-main">
+          <div class="preview-quality-bar" x-show="tab === 'design' && timeline.events.length">
+            <span>Preview layout:
+              <strong :class="previewLayoutClass()" x-text="previewLayoutScore != null ? previewLayoutScore + '/100' : '—'"></strong>
+            </span>
+            <span class="preview-quality-hint preview-quality-warn" x-show="previewLayoutOverflow > 0" x-text="previewLayoutOverflow + ' overflow issue(s)'"></span>
+            <button type="button" class="btn btn-sm" @click="runLayoutAudit()">Re-check</button>
+          </div>
+          <div class="viz-preview-wrap viz-preview-clickable" id="viz-preview-wrap" @click="handlePreviewClick($event)">
+            <div id="viz-preview"></div>
+          </div>
+        </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="panel tab-panel" :class="{ 'is-active': tab === 'output' }">
+      <h2 class="panel-heading">Export & publish</h2>
+      <label class="checkbox-row output-filter-option">
+        <input type="checkbox" x-model="timeline.meta.applyEditFiltersToExport" @change="scheduleSave()">
+        Export filtered events only
+      </label>
+      <p class="input-hint output-filter-hint" x-show="timeline.meta.applyEditFiltersToExport && filterIsActive()">
+        Exporting <strong x-text="exportTimeline().events.length"></strong> of <strong x-text="timeline.events.length"></strong> events.
+      </p>
+      <div class="output-grid">
+        <div class="output-card" @click="openAnonymizeModal()" data-tip="Replace hosts, users, and IPs with placeholders">
+          <div class="icon">🔒</div>
+          <strong>Anonymize</strong>
+        </div>
+        <div class="output-card" @click="exportAs('executive-pdf')" data-tip="Portrait one-page executive summary PDF">
+          <div class="icon">📰</div>
+          <strong>Executive one-pager (PDF)</strong>
+        </div>
+        <div class="output-card" @click="exportAs('pptx')" data-tip="Slide deck with title, phases, and event tables">
+          <div class="icon">📊</div>
+          <strong>PowerPoint</strong>
+        </div>
+        <div class="output-card" @click="exportAs('appendix-pdf')" data-tip="Doc-width timeline chart + event table (same as DESIGN appendix viz)">
+          <div class="icon">📎</div>
+          <strong>Appendix page (PDF)</strong>
+        </div>
+        <div class="output-card" @click="exportAs('appendix-png')" data-tip="PNG snapshot of the appendix layout">
+          <div class="icon">🗂</div>
+          <strong>Appendix page (PNG)</strong>
+        </div>
+        <div class="output-card" @click="exportAs('markdown')" data-tip="GitHub-flavored table for reports">
+          <div class="icon">📝</div>
+          <strong>Markdown table</strong>
+        </div>
+        <div class="output-card" @click="exportAs('docx')" data-tip="Word document with appendix snapshot and full event table">
+          <div class="icon">📃</div>
+          <strong>Word document</strong>
+        </div>
+        <div class="output-card" @click="exportAs('report-pack')" data-tip="ZIP with executive PDF, appendix PDF, Word, Markdown, JSON, and STIX">
+          <div class="icon">📦</div>
+          <strong>Report pack</strong>
+        </div>
+        <div class="output-card" @click="exportAs('appendix-pptx')" data-tip="Minimal PowerPoint deck with appendix timeline slide">
+          <div class="icon">📑</div>
+          <strong>Appendix slide (PPTX)</strong>
+        </div>
+        <div class="output-card" @click="exportAs('csv')" data-tip="Comma-separated values for spreadsheets">
+          <div class="icon">📋</div>
+          <strong>CSV export</strong>
+        </div>
+        <div class="output-card" @click="exportAs('ical')" data-tip="Calendar events for Outlook or Google Calendar">
+          <div class="icon">📅</div>
+          <strong>iCalendar (.ics)</strong>
+        </div>
+        <div class="output-card" @click="exportAs('html')" data-tip="Self-contained offline HTML page">
+          <div class="icon">🌐</div>
+          <strong>Interactive HTML</strong>
+        </div>
+        <div class="output-card" @click="exportAs('png')" data-tip="High-resolution PNG snapshot of DESIGN preview">
+          <div class="icon">🖼</div>
+          <strong>PNG image</strong>
+        </div>
+        <div class="output-card" @click="exportAs('pdf')" data-tip="PDF document for print or email">
+          <div class="icon">📄</div>
+          <strong>PDF report</strong>
+        </div>
+        <div class="output-card" @click="exportAs('svg')" data-tip="Scalable vector graphic from preview">
+          <div class="icon">◇</div>
+          <strong>SVG vector</strong>
+        </div>
+        <div class="output-card" @click="exportAs('print')" data-tip="Open browser print dialog">
+          <div class="icon">🖨</div>
+          <strong>Print</strong>
+        </div>
+        <div class="output-card" @click="downloadShareFile()" data-tip="Download timeline JSON to share via email">
+          <div class="icon">📤</div>
+          <strong>Share file</strong>
+        </div>
+        <div class="output-card" @click="exportAs('json')" data-tip="Machine-readable timeline JSON">
+          <div class="icon">{ }</div>
+          <strong>JSON data</strong>
+        </div>
+        <div class="output-card" @click="exportAs('stix')" data-tip="STIX 2.1 bundle for threat intel platforms">
+          <div class="icon">⬡</div>
+          <strong>STIX 2.1 bundle</strong>
+        </div>
+        <div class="output-card" @click="exportAs('link')">
+          <div class="icon">🔗</div>
+          <strong>Shareable link</strong>
+        </div>
+        <div class="output-card" x-show="compareTimeline?.events?.length" @click="exportDiffAs('markdown')">
+          <div class="icon">≠</div>
+          <strong>Diff report</strong>
+        </div>
+        <div class="output-card" x-show="compareTimeline?.events?.length" @click="exportDiffAs('csv')">
+          <div class="icon">≠</div>
+          <strong>Diff CSV</strong>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <datalist id="mitre-list">
+    <template x-for="t in mitreTechniques" :key="t.id">
+      <option :value="t.id" x-text="t.id + ' — ' + t.name"></option>
+    </template>
+  </datalist>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showNewTimelineModal }" @click.self="closeNewTimelineModal()">
+    <div class="modal" @click.stop>
+      <h3>Start fresh?</h3>
+      <div class="modal-actions">
+        <button type="button" class="btn" @click="closeNewTimelineModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" @click="confirmNewTimeline()">Clear workspace</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showShareModal }" @click.self="closeShareModal()">
+    <div class="modal share-modal" @click.stop>
+      <h3>Share timeline</h3>
+      <div x-show="shareLinkResult && !shareLinkResult.tooLarge">
+        <input type="text" class="share-url-input" readonly :value="shareLinkResult?.url || ''" @click="$event.target.select()">
+      </div>
+      <div x-show="shareLinkResult?.tooLarge">
+        <p class="share-warn">Timeline too large for a URL (<span x-text="shareLinkResult?.length"></span> chars, max <span x-text="shareLinkResult?.maxLength"></span>).</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" @click="closeShareModal()">Close</button>
+        <button type="button" class="btn btn-ghost" x-show="shareLinkResult?.tooLarge" @click="copyLocalShareBookmark()">Local bookmark</button>
+        <button type="button" class="btn btn-primary" @click="downloadShareFallback()">Download timeline file</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showQualityPanel }" @click.self="showQualityPanel = false">
+    <div class="modal quality-modal" @click.stop>
+      <h3>Timeline quality</h3>
+      <p class="quality-modal-score">Score <strong x-text="analysis?.score ?? '—'"></strong>/100 · <span x-text="timeline.events.length"></span> events</p>
+
+      <div class="quality-group" x-show="analysisIssuesList().length">
+        <h4 class="quality-group-title">Issues <span class="quality-count" x-text="analysisIssuesList().length"></span></h4>
+        <template x-for="item in analysisIssuesList()" :key="'m-' + item.message">
+          <button type="button" class="quality-item" :class="item.severity" @click="goToAnalysisItem(item)" :disabled="!item.eventId">
+            <span class="quality-item-label" x-text="item.ruleLabel"></span>
+            <span class="quality-item-message" x-text="item.message"></span>
+            <span class="quality-item-go" x-show="item.eventId">Go to event #<span x-text="item.eventIndex"></span> →</span>
+          </button>
+        </template>
+      </div>
+
+      <div class="quality-group" x-show="analysisRecommendationsList().length">
+        <h4 class="quality-group-title">Recommendations <span class="quality-count" x-text="analysisRecommendationsList().length"></span></h4>
+        <template x-for="item in analysisRecommendationsList()" :key="'r-' + item.message">
+          <div class="quality-item-wrap">
+            <button type="button" class="quality-item" :class="item.severity || 'info'" @click="goToAnalysisItem(item)" :disabled="!item.eventId">
+              <span class="quality-item-label" x-text="item.ruleLabel"></span>
+              <span class="quality-item-message" x-text="item.message"></span>
+              <span class="quality-item-go" x-show="item.eventId">Go to event #<span x-text="item.eventIndex"></span> →</span>
+            </button>
+            <button type="button" class="btn btn-xs quality-apply" x-show="item.type === 'category' || item.type === 'technique'" @click.stop="applyAnalysisSuggestion(item)">Apply</button>
+          </div>
+        </template>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" @click="showQualityPanel = false">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showExportPreflight }" @click.self="cancelExport()">
+    <div class="modal export-preflight-modal" @click.stop>
+      <h3 x-text="exportPreflightModalTitle()"></h3>
+      <p
+        class="export-preflight-status"
+        :class="'is-' + exportPreflightStatusKind()"
+        x-text="exportPreflightSummaryText()"
+      ></p>
+      <div class="export-preflight-meta" x-show="exportPreflightIsVisual()">
+        <span class="export-layout-score" x-show="exportPreflight?.layoutScore != null">
+          Layout <strong x-text="exportPreflight?.layoutScore + '/100'"></strong>
+        </span>
+      </div>
+      <img class="export-preview-thumb" x-show="exportPreviewThumb" :src="exportPreviewThumb" alt="Export preview thumbnail">
+      <div class="export-preflight-issues" x-show="exportPreflight?.items?.length">
+        <template x-for="item in exportPreflight?.items || []" :key="item.message">
+          <div class="issue" :class="item.severity" x-text="item.message"></div>
+        </template>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" @click="cancelExport()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-ghost"
+          x-show="!exportPreflight?.ok"
+          @click="setTab('edit'); cancelExport()"
+        >Open EDIT</button>
+        <button class="btn btn-primary" x-show="exportPreflight?.ok" @click="confirmExport()" x-text="exportPreflightConfirmLabel()"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showShortcutsHelp }" @click.self="showShortcutsHelp = false">
+    <div class="modal shortcuts-modal" @click.stop>
+      <h3>Keyboard shortcuts</h3>
+      <dl class="shortcuts-list">
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>1</kbd></dt><dd>INPUT tab</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>2</kbd></dt><dd>EDIT tab</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>3</kbd></dt><dd>DESIGN tab</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>4</kbd></dt><dd>OUTPUT tab</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>N</kbd></dt><dd>New timeline (clear workspace)</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>S</kbd></dt><dd>Save draft</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>O</kbd></dt><dd>Open timeline JSON</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>⇧S</kbd></dt><dd>Save timeline to file</dd>
+        <dt><kbd>[</kbd> / <kbd>]</kbd></dt><dd>EDIT prev/next page (when paginated)</dd>
+        <dt><kbd>j</kbd> / <kbd>k</kbd></dt><dd>EDIT focus next/previous row</dd>
+        <dt><kbd>↑</kbd> / <kbd>↓</kbd></dt><dd>EDIT focus prev/next row</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>Z</kbd></dt><dd>Undo</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>⇧Z</kbd></dt><dd>Redo</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>P</kbd></dt><dd>Print (in DESIGN)</dd>
+        <dt><kbd>?</kbd></dt><dd>This help</dd>
+      </dl>
+      <div class="modal-actions">
+        <button class="btn btn-primary" @click="showShortcutsHelp = false">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showPhasesModal }" @click.self="closePhasesModal()">
+    <div class="modal phases-modal" @click.stop>
+      <h3>Attack phases</h3>
+      <div class="phase-editor">
+        <template x-for="p in activePhases()" :key="p.id">
+          <div class="phase-editor-row">
+            <span class="phase-editor-id" x-text="p.id"></span>
+            <input type="text" :value="p.name" placeholder="Phase name" @input="updatePhaseField(p.id, 'name', $event.target.value)">
+            <input type="color" :value="p.color" @input="updatePhaseField(p.id, 'color', $event.target.value)">
+            <input type="text" class="phase-range" :value="p.range" placeholder="Oct 2024 – Jan 2025" @input="updatePhaseField(p.id, 'range', $event.target.value)">
+          </div>
+        </template>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" x-show="hasCustomPhases()" @click="resetPhasesToDefault()">Reset to defaults</button>
+        <button type="button" class="btn btn-primary" @click="closePhasesModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showAboutModal }" @click.self="closeAboutModal()">
+    <div class="modal about-modal" role="dialog" aria-modal="true" aria-labelledby="about-title" @click.stop>
+      <div class="about-modal-brand">
+        <img class="about-modal-logo" :src="brandLogoSrc()" width="72" height="72" alt="">
+        <div>
+          <h3 id="about-title" x-text="appName"></h3>
+          <p class="about-modal-tagline" x-text="appSubtitle"></p>
+          <p class="about-modal-version" x-text="'Version ' + appVersion"></p>
+        </div>
+      </div>
+      <p class="about-modal-desc" x-text="appDescription"></p>
+      <p class="about-modal-contact">
+        <span x-text="appContactName"></span><br>
+        <a class="about-modal-email" :href="'mailto:' + appContactEmail" x-text="appContactEmail"></a>
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" @click="closeAboutModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showAnonymizeModal }" @click.self="closeAnonymizeModal()">
+    <div class="modal" @click.stop>
+      <h3>Anonymize timeline</h3>
+      <template x-if="anonymizePreview">
+        <div class="anon-stats">
+          <div><strong x-text="anonymizePreview.hosts.length"></strong> hosts</div>
+          <div><strong x-text="anonymizePreview.users.length"></strong> users</div>
+          <div><strong x-text="anonymizePreview.ips.length"></strong> IPs</div>
+          <div><strong x-text="anonymizePreview.emails.length"></strong> emails</div>
+          <div><strong x-text="anonymizePreview.domains.length"></strong> domains</div>
+        </div>
+      </template>
+      <div class="modal-actions">
+        <button type="button" class="btn" @click="closeAnonymizeModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" @click="applyAnonymize()">Anonymize now</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop event-detail-backdrop" :class="{ 'is-open': showEventDetailModal }" @click.self="closeEventDetailModal()" @keydown.escape.window="closeEventDetailModal()">
+    <div class="modal event-detail-modal" role="dialog" aria-modal="true" aria-labelledby="event-detail-title" @click.stop x-show="eventDetailEvent()" x-cloak>
+      <header class="event-detail-header">
+        <div>
+          <p class="event-detail-kicker" x-text="'Event #' + eventIndex(eventDetailEvent())"></p>
+          <h3 id="event-detail-title" x-text="eventDetailCategoryLabel(eventDetailEvent()?.category)"></h3>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost event-detail-close" @click="closeEventDetailModal()" aria-label="Close">✕</button>
+      </header>
+      <dl class="event-detail-grid">
+        <div class="event-detail-field">
+          <dt>When</dt>
+          <dd>
+            <span x-text="formatEditTimestamp(eventDetailEvent()?.timestampStart)"></span>
+            <template x-if="eventDetailEvent()?.timestampEnd">
+              <span> → <span x-text="formatEditTimestamp(eventDetailEvent()?.timestampEnd)"></span></span>
+            </template>
+          </dd>
+        </div>
+        <div class="event-detail-field">
+          <dt>Host</dt>
+          <dd x-text="eventDetailEvent()?.hostname || '—'"></dd>
+        </div>
+        <div class="event-detail-field">
+          <dt>User</dt>
+          <dd x-text="eventDetailEvent()?.username || '—'"></dd>
+        </div>
+        <div class="event-detail-field">
+          <dt>Phase</dt>
+          <dd x-text="eventDetailPhaseLabel(eventDetailEvent()?.phase)"></dd>
+        </div>
+        <div class="event-detail-field" x-show="eventDetailEvent()?.technique">
+          <dt>MITRE</dt>
+          <dd x-text="eventDetailEvent()?.technique"></dd>
+        </div>
+        <div class="event-detail-field" x-show="eventDetailEvent()?.source">
+          <dt>Source</dt>
+          <dd x-text="eventDetailEvent()?.source"></dd>
+        </div>
+        <div class="event-detail-field" x-show="eventDetailEvent()?.evidence">
+          <dt>Evidence</dt>
+          <dd x-text="eventDetailEvent()?.evidence"></dd>
+        </div>
+        <div class="event-detail-field" x-show="(eventDetailEvent()?.tags || []).length">
+          <dt>Tags</dt>
+          <dd x-text="(eventDetailEvent()?.tags || []).join(', ')"></dd>
+        </div>
+        <div class="event-detail-field" x-show="(eventDetailEvent()?.linkedEventIds || []).length">
+          <dt>Links</dt>
+          <dd x-text="(eventDetailEvent()?.linkedEventIds || []).join(', ')"></dd>
+        </div>
+      </dl>
+      <section class="event-detail-narrative">
+        <h4>Details</h4>
+        <p x-text="eventDetailEvent()?.details"></p>
+      </section>
+      <div class="modal-actions">
+        <button type="button" class="btn" @click="closeEventDetailModal()">Close</button>
+        <button type="button" class="btn btn-primary" @click="openEventDetailInEdit()">Edit in table</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/bootstrap.js"></script>
+</body>
+</html>

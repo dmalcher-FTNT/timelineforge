@@ -1,0 +1,41 @@
+TimelineForge — offline local run
+=================================
+
+Requirements
+  • Python 3.8+ (pre-installed on macOS; on Ubuntu: sudo apt install python3)
+  • A modern browser (Chrome, Firefox, Safari, Edge)
+  • No Node.js needed to RUN the archive — only to build it
+
+Quick start (macOS or Ubuntu)
+  1. Unpack the archive:
+       tar -xzf timelineforge-1.0.0.tar.gz
+     or unzip timelineforge-1.0.0.zip
+
+  2. Enter the folder:
+       cd timelineforge-1.0.0
+
+  3. Start the app:
+       chmod +x run.sh    # first time only
+       ./run.sh
+
+  4. Open in your browser:
+       http://127.0.0.1:8080/
+
+Share on your LAN (optional)
+  On a Ubuntu server or Mac, let colleagues on the same network connect:
+       BIND=0.0.0.0 PORT=8080 ./run.sh
+  Then open http://<server-ip>:8080/ from other machines.
+  Use firewall rules to restrict access if needed.
+
+Custom port
+       PORT=9000 ./run.sh
+
+Offline use
+  After the first load in a browser, the service worker caches the app.
+  You can run without internet on later visits (PDF/OCR may need first-time downloads).
+
+Manual start (without run.sh)
+       python3 -m http.server 8080 --bind 127.0.0.1
+
+Contact
+  David Malcher — dmalcher@fortinet.com
