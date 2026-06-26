@@ -1,12 +1,20 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const appVersion = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '../../js/version.js'),
+  'utf8',
+).match(/APP_VERSION = '([^']+)'/)?.[1];
 
 test.describe('TimelineForge UI', () => {
   test('boots without modals open', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.brand-title')).toHaveText('TimelineForge');
     await expect(page.locator('.brand-subtitle')).toHaveText('CHAIN OF EVENTS');
-    await expect(page.locator('.brand-version')).toContainText('v1.0');
+    await expect(page.locator('.brand-version')).toHaveText(`v${appVersion}`);
     await expect(page.locator('#boot-error')).toBeHidden();
     await expect(page.locator('.modal-backdrop.is-open')).toHaveCount(0);
     await expect(page.locator('.tab-panel.is-active')).toHaveCount(1);

@@ -49,6 +49,7 @@ export const IR_TOOL_FORMATS = [
   { id: 'autopsy', name: 'Autopsy / Plaso CSV', status: 'supported' },
   { id: 'kape', name: 'KAPE Timeline CSV', status: 'supported' },
   { id: 'hayabusa', name: 'Hayabusa CSV', status: 'supported' },
+  { id: 'evtxecmd', name: 'EvtxECmd (EZ Tools CSV)', status: 'supported' },
   { id: 'timesketch', name: 'Timesketch', status: 'supported' },
   { id: 'axiom', name: 'Magnet AXIOM Export', status: 'supported' },
   { id: 'xways', name: 'X-Ways Forensics', status: 'supported' },

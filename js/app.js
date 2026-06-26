@@ -1,5 +1,6 @@
 import { dedupeEventDetails } from './event-details.js';
-import { enrichEvents, linkSequentialEvents } from './edit/enrich.js';
+import { linkSequentialEvents, enrichEvents } from './edit/enrich.js';
+import { collapseDuplicateEvents } from './edit/merge-events.js';
 import { analyzeTimeline, applySuggestion, analysisIssues, analysisRecommendations } from './edit/analyzer.js';
 import { buildActivityPreview } from './edit/activity-preview.js';
 import { anonymizeTimeline, scanTimeline } from './edit/anonymize.js';
@@ -212,6 +213,7 @@ export function createApp() {
         items: [
           { action: 'phases', label: 'Edit attack phases…' },
           { action: 'link-sequential', label: 'Link sequential events' },
+          { action: 'merge-duplicates', label: 'Merge duplicate events' },
           { action: 'anonymize', label: 'Anonymize…' },
           { action: 'baseline', label: 'Save as baseline' },
           { action: 'quality', label: 'Quality analysis' },
@@ -840,6 +842,25 @@ export function createApp() {
       setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 3000);
     },
 
+    applyMergeDuplicates() {
+      const events = this.timeline.events || [];
+      if (!events.length) {
+        this.statusMessage = 'Add events before merging duplicates.';
+        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        return;
+      }
+      const { events: merged, removed } = collapseDuplicateEvents(events);
+      if (!removed) {
+        this.statusMessage = 'No duplicate events found.';
+        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        return;
+      }
+      this.timeline.events = merged;
+      this.notifyTimelineChanged();
+      this.statusMessage = `Merged ${removed} duplicate event${removed === 1 ? '' : 's'}.`;
+      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 3000);
+    },
+
     syncJson() {
       this.notifyTimelineChanged();
     },
@@ -1110,6 +1131,10 @@ export function createApp() {
       }
       if (action === 'link-sequential') {
         this.applyLinkSequential();
+        return;
+      }
+      if (action === 'merge-duplicates') {
+        this.applyMergeDuplicates();
         return;
       }
       if (action === 'baseline') {

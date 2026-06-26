@@ -246,6 +246,29 @@ export function parseHayabusa(text) {
   });
 }
 
+/** Eric Zimmerman EvtxECmd / EZ Tools CSV export. */
+export function parseEvtxecmd(text) {
+  return parseTabularCsv(text, (row) => {
+    const ts = row.timecreated || row['time created'] || row.datetime || row.timestamp || '';
+    const eventId = row.eventid || row['event id'] || row.eventidentifier || row['event identifier'] || '';
+    const mapDesc = row.mapdescription || row['map description'] || '';
+    const shortDesc = row.shortdescription || row['short description'] || '';
+    const payload = [row.payloaddata1, row.payloaddata2, row.payloaddata3, row.payloaddata4]
+      .filter(Boolean).join(' | ');
+    const details = mapDesc || shortDesc || row.description || payload || row.details || '';
+    const channel = row.channel || '';
+    const user = row.username || row.user || row['user name'] || 'N/A';
+
+    return normalizeEvent({
+      timestampStart: parseFlexibleDate(ts) || ts,
+      hostname: row.computer || row.hostname || row.machine || 'N/A',
+      username: user,
+      details: details || (eventId ? `Event ${eventId}` : 'EvtxECmd event'),
+      tags: [channel, eventId ? `EID:${eventId}` : ''].filter(Boolean),
+    });
+  });
+}
+
 export function parseVelociraptor(data) {
   const root = typeof data === 'string' ? JSON.parse(data) : data;
   const items = root.items || root.rows || root.results || (Array.isArray(root) ? root : []);
@@ -396,6 +419,8 @@ export function parseIrTool(toolId, text) {
       return parseKape(text);
     case 'hayabusa':
       return parseHayabusa(text);
+    case 'evtxecmd':
+      return parseEvtxecmd(text);
     case 'velociraptor':
       return parseVelociraptor(text);
     case 'chronicle':

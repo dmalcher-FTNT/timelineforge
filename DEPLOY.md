@@ -58,11 +58,10 @@ git commit -m "TimelineForge 1.0.0 — initial release"
 | Included | Excluded (.gitignore) |
 |----------|------------------------|
 | Source (`js/`, `index.html`, `css/`, …) | `node_modules/` |
-| `vendor/` (~31 MB bundled libs) | `dist/` |
-| `data/`, `assets/`, tests | `release/` |
-| `package.json`, `package-lock.json` | test reports |
+| `data/`, `assets/`, tests | `vendor/` (run `npm run vendor`) |
+| `package.json`, `package-lock.json` | `dist/`, `release/` |
 
-**Optional:** To keep the repo smaller, add `vendor/` to `.gitignore` and rely on CI (`npm run vendor` in the workflow). The current setup **commits vendor/** so clones work offline without running npm.
+**`vendor/` is not committed.** After clone, CI and local dev run `npm run vendor` to download/bundle browser libraries (Alpine, D3, PDF.js, Tesseract, etc.) into `vendor/`. The running app and offline PWA still need that folder — it is just a build artifact, like `dist/`.
 
 ---
 
