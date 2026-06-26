@@ -1,4 +1,4 @@
-const CACHE = 'timelineforge-offline-v3';
+const CACHE = 'timelineforge-offline-v4';
 
 const SHELL = [
   './',

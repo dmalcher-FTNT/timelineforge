@@ -15,7 +15,7 @@ export const TEXT_LIMITS = {
   scribingDetails: 65,
   attackNode: 36,
   compareCard: 95,
-  appendixDetails: 72,
+  footerTakeaway: 72,
 };
 
 /** Collapse whitespace and strip control characters for clean viz text. */

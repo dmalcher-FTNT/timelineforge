@@ -74,7 +74,7 @@ export function buildActivityPreview(events, opts = {}) {
 
   const limited = intervals.length > MAX_MARKERS ? intervals.slice(0, MAX_MARKERS) : intervals;
   const stacked = assignIntervalRows(limited);
-  const laneCount = Math.max(1, ...stacked.map((m) => m.row + 1));
+  let laneCount = Math.max(1, ...stacked.map((m) => m.row + 1));
 
   const markers = stacked.map(({ event, start, end, row }) => {
     const leftPct = clampPct(pct(start, min, max));
@@ -92,6 +92,23 @@ export function buildActivityPreview(events, opts = {}) {
       row,
       laneCount,
     };
+  });
+
+  // Non-overlapping point timelines sit on one packed row — spread across lanes to use chart height.
+  const naturalLaneCount = laneCount;
+  const allPoints = markers.every((m) => m.isPoint);
+  if (allPoints && naturalLaneCount === 1 && markers.length > 2) {
+    const targetLanes = Math.min(12, Math.max(2, Math.ceil(Math.sqrt(markers.length))));
+    markers
+      .slice()
+      .sort((a, b) => a.leftPct - b.leftPct)
+      .forEach((marker, index) => {
+        marker.row = index % targetLanes;
+      });
+    laneCount = targetLanes;
+  }
+  markers.forEach((marker) => {
+    marker.laneCount = laneCount;
   });
 
   return {

@@ -42,3 +42,17 @@ export function filtersActive(filters) {
 export function toggleSingleFilter(current, value) {
   return current === value ? '' : value;
 }
+
+/**
+ * Build EDIT filter state when clicking an observable (host chip vs text search).
+ * @param {string} value Observable value
+ * @param {string[]} hosts Known hostnames on the timeline
+ * @param {{ search?: string, host?: string }} current
+ */
+export function observableFilterState(value, hosts, { search = '', host = '' } = {}) {
+  const cleared = { search: '', host: '', user: '', category: '', tag: '' };
+  if (hosts.includes(value)) {
+    return { ...cleared, host: host === value ? '' : value };
+  }
+  return { ...cleared, search: search === value ? '' : value };
+}

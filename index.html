@@ -46,7 +46,7 @@
       </div>
       <div class="header-actions">
         <span class="header-save" x-show="draftSavedAt" x-text="draftLabel()"></span>
-        <span class="header-baseline-badge" x-show="compareTimeline?.events?.length" data-tip="A comparison timeline is loaded — use DESIGN Compare or Tools diff">Baseline</span>
+        <span class="header-baseline-badge" x-show="compareTimeline?.events?.length" data-tip="Baseline loaded — diff in EDIT sidebar or Tools menu">Baseline</span>
 
         <div class="header-groups">
           <input type="file" x-ref="openTimelineInput" accept=".json,application/json" @change="handleOpenTimelineFile($event)" hidden>
@@ -155,7 +155,7 @@
               @click.stop="toggleHeaderMenu('export')"
             >Export</button>
             <div class="header-menu" role="menu" x-show="headerMenuOpen === 'export'" x-cloak @keydown.escape.window="closeHeaderMenu()">
-              <template x-for="section in headerExportSections" :key="section.title">
+              <template x-for="section in headerExportMenuSections()" :key="section.title">
                 <div class="header-menu-section">
                   <p class="header-menu-label" x-text="section.title"></p>
                   <template x-for="item in section.items" :key="item.type">
@@ -166,8 +166,8 @@
                 </div>
               </template>
               <div class="header-menu-sep" role="separator"></div>
-              <button type="button" role="menuitem" class="header-menu-item header-menu-item-footer" @click="headerExport('output-tab')">
-                <span>All export formats…</span>
+              <button type="button" role="menuitem" class="header-menu-item header-menu-item-footer" @click="headerExport('publish-tab')">
+                <span>Open Publish tab…</span>
               </button>
             </div>
           </div>
@@ -221,9 +221,12 @@
       </div>
     </div>
 
-    <section class="incident-panel" aria-label="Incident details">
+    <section class="incident-panel" aria-label="Timeline preview">
+      <header class="incident-panel-head">
+        <h2 class="incident-panel-title">Timeline preview</h2>
+      </header>
       <div class="incident-panel-primary">
-        <label class="incident-label" for="incident-title-input">Timeline title</label>
+        <label class="incident-label" for="incident-title-input">Incident Title</label>
         <div class="incident-title-wrap">
           <input
             id="incident-title-input"
@@ -260,7 +263,7 @@
                     <template x-for="(bucket, bi) in activityPreview().buckets" :key="'ab-' + bi">
                       <span
                         class="activity-preview-bar"
-                        :style="`left:${bucket.leftPct}%; width:${bucket.widthPct}%; height:${Math.max(6, bucket.heightPct)}%`"
+                        :style="`left:${bucket.leftPct}%; width:${bucket.widthPct}%; height:${Math.max(8, bucket.heightPct)}%`"
                       ></span>
                     </template>
                   </div>
@@ -371,8 +374,7 @@
     <nav class="tabs">
       <button type="button" class="tab-btn" :class="{ active: tab === 'input' }" @click="setTab('input')">INPUT</button>
       <button type="button" class="tab-btn" :class="{ active: tab === 'edit' }" @click="setTab('edit')">EDIT</button>
-      <button type="button" class="tab-btn" :class="{ active: tab === 'design' }" @click="setTab('design')">DESIGN</button>
-      <button type="button" class="tab-btn" :class="{ active: tab === 'output' }" @click="setTab('output')">OUTPUT</button>
+      <button type="button" class="tab-btn" :class="{ active: tab === 'publish' }" @click="setTab('publish')">PUBLISH</button>
     </nav>
   </header>
 
@@ -390,7 +392,7 @@
         <button type="button" class="chip" :class="{ active: inputMode === 'report' }" @click="inputMode = 'report'">Word / PDF report</button>
       </div>
 
-      <div class="input-workspace">
+      <div class="input-workspace" @paste="onSourcePaste($event)">
         <div class="input-mode-panel">
           <template x-if="inputMode === 'manual'">
             <div class="input-mode-block">
@@ -463,6 +465,7 @@
         </div>
 
         <div class="input-feedback">
+          <p x-show="detectedFormatHint" class="input-detect-hint" x-text="detectedFormatHint"></p>
           <p x-show="inputError" class="input-error" x-text="inputError"></p>
           <p x-show="inputParseStats && inputParseStats.skipped" class="input-parse-stats">
             Parsed <strong x-text="inputParseStats?.parsed"></strong> of <strong x-text="inputParseStats?.attempted"></strong> lines
@@ -555,6 +558,52 @@
               </template>
             </div>
           </section>
+          <section class="observables-sidebar" x-show="timeline.events.length && timelineObservables().total">
+            <div class="observables-sidebar-head">
+              <h3>Observables <span class="quality-count" x-text="timelineObservables().total"></span></h3>
+              <div class="observables-actions">
+                <button type="button" class="btn btn-xs btn-ghost" @click="copyObservables()" title="Copy to clipboard">Copy</button>
+                <button type="button" class="btn btn-xs btn-ghost" @click="downloadObservablesCsv()" title="Download CSV">CSV</button>
+              </div>
+            </div>
+            <p class="observables-hint" x-show="!filterIsActive()">Click an observable to filter events</p>
+            <p class="observables-hint" x-show="filterIsActive()">From filtered events</p>
+            <div class="observables-group" x-show="timelineObservables().ips.length">
+              <h4 class="observables-group-title">IPs <span x-text="timelineObservables().ips.length"></span></h4>
+              <template x-for="item in timelineObservables().ips.slice(0, 6)" :key="'ip-' + item.value">
+                <button type="button" class="observables-row" :class="{ active: observableFilterActive(item.value) }" :title="'Filter events with ' + item.value" @click="filterByObservable(item)">
+                  <code x-text="item.value"></code>
+                  <span class="observables-meta" x-text="item.eventCount"></span>
+                </button>
+              </template>
+            </div>
+            <div class="observables-group" x-show="timelineObservables().domains.length">
+              <h4 class="observables-group-title">Domains <span x-text="timelineObservables().domains.length"></span></h4>
+              <template x-for="item in timelineObservables().domains.slice(0, 5)" :key="'dom-' + item.value">
+                <button type="button" class="observables-row" :class="{ active: observableFilterActive(item.value) }" :title="'Filter events with ' + item.value" @click="filterByObservable(item)">
+                  <code x-text="item.value"></code>
+                  <span class="observables-meta" x-text="item.eventCount"></span>
+                </button>
+              </template>
+            </div>
+            <div class="observables-group" x-show="timelineObservables().hashes.length">
+              <h4 class="observables-group-title">Hashes <span x-text="timelineObservables().hashes.length"></span></h4>
+              <template x-for="item in timelineObservables().hashes.slice(0, 4)" :key="'hash-' + item.value">
+                <button type="button" class="observables-row" :class="{ active: observableFilterActive(item.value) }" :title="'Filter events with this hash'" @click="filterByObservable(item)">
+                  <code x-text="item.value.slice(0, 16) + '…'"></code>
+                  <span class="observables-meta" x-text="item.type"></span>
+                </button>
+              </template>
+            </div>
+            <div class="observables-group" x-show="timelineObservables().urls.length">
+              <h4 class="observables-group-title">URLs <span x-text="timelineObservables().urls.length"></span></h4>
+              <template x-for="item in timelineObservables().urls.slice(0, 4)" :key="'url-' + item.value">
+                <button type="button" class="observables-row" :class="{ active: observableFilterActive(item.value) }" :title="'Filter events with this URL'" @click="filterByObservable(item)">
+                  <code x-text="item.value.length > 36 ? item.value.slice(0, 34) + '…' : item.value"></code>
+                </button>
+              </template>
+            </div>
+          </section>
           <div class="filter-group filter-group-scroll">
             <h3>Hosts</h3>
             <div class="filter-chips">
@@ -635,6 +684,8 @@
           </div>
           <div class="edit-sidebar-footer">
           <button type="button" class="btn btn-sm btn-ghost filter-clear" x-show="filterIsActive()" @click="clearEditFilters()">Clear filters</button>
+          <input type="file" x-ref="loadBaselineInput" accept=".json,application/json" @change="loadCompareTimeline($event)" hidden>
+          <button type="button" class="btn btn-sm btn-ghost" style="width:100%;margin-top:.35rem" @click="$refs.loadBaselineInput.click()">Load baseline…</button>
           <button type="button" class="btn btn-sm btn-ghost" style="width:100%;margin-top:.35rem" @click="saveCurrentAsBaseline()">Save as baseline</button>
           </div>
         </aside>
@@ -839,161 +890,141 @@
       </div>
     </section>
 
-    <!-- DESIGN -->
-    <section class="panel tab-panel design-panel" :class="{ 'is-active': tab === 'design' }">
-      <div class="design-workspace">
-        <header class="design-toolbar" x-show="timeline.events.length">
-          <div class="design-toolbar-selects">
-            <label class="design-toolbar-field">
-              <span class="design-toolbar-label">Visualization</span>
-              <select class="design-toolbar-select" x-model="vizType">
-                <template x-for="v in vizTypes" :key="v.id">
-                  <option :value="v.id" x-text="v.label"></option>
+    <!-- PUBLISH -->
+    <section class="panel tab-panel publish-panel" :class="{ 'is-active': tab === 'publish' }">
+      <div class="publish-workspace">
+        <header class="design-toolbar publish-layout-bar" x-show="timeline.events.length">
+          <div class="design-gallery-panel">
+            <div class="design-gallery-header">
+              <span class="design-toolbar-label">Who are you briefing?</span>
+              <div class="design-audience-filters" role="tablist" aria-label="Audience filter">
+                <template x-for="a in designAudiences" :key="a.id">
+                  <button
+                    type="button"
+                    class="design-audience-chip"
+                    :class="{ active: designAudience === a.id }"
+                    role="tab"
+                    :aria-selected="designAudience === a.id"
+                    @click="setDesignAudience(a.id)"
+                    x-text="a.label"
+                  ></button>
                 </template>
-              </select>
-            </label>
-            <label class="design-toolbar-field" x-show="showVizStylePicker()">
-              <span class="design-toolbar-label" x-text="designStyleLabel()"></span>
-              <select class="design-toolbar-select" x-model="vizStyle">
-                <template x-for="s in availableVizStyles()" :key="s.id">
-                  <option :value="s.id" x-text="s.label"></option>
-                </template>
-              </select>
-            </label>
-          </div>
-          <div class="design-toolbar-export" x-show="timeline.events.length">
-            <span class="design-toolbar-label">Export preview</span>
-            <div class="design-export-btns">
-              <button type="button" class="btn btn-sm btn-primary" @click="exportPreviewAs('png')" data-tip="PNG image of this preview" data-tip-pos="below">PNG</button>
-              <button type="button" class="btn btn-sm" @click="exportPreviewAs('pdf')" data-tip="PDF document" data-tip-pos="below">PDF</button>
-              <button type="button" class="btn btn-sm" @click="exportPreviewAs('svg')" data-tip="SVG vector graphic" data-tip-pos="below">SVG</button>
+              </div>
+            </div>
+            <div class="design-gallery-grid" role="listbox" aria-label="Timeline layouts">
+              <template x-for="layout in filteredDesignLayouts()" :key="layout.id">
+                <button
+                  type="button"
+                  class="design-gallery-card"
+                  :class="{ active: designLayout === layout.id, 'is-case-file': layout.family === 'case-file' }"
+                  role="option"
+                  :aria-selected="designLayout === layout.id"
+                  @click="applyDesignLayout(layout.id)"
+                >
+                  <div class="design-gallery-thumb" :class="'design-gallery-thumb-' + layout.thumb" aria-hidden="true"></div>
+                  <div class="design-gallery-card-body">
+                    <strong x-text="layout.label"></strong>
+                    <span class="design-gallery-tagline" x-text="layout.tagline"></span>
+                    <span class="design-gallery-audience" x-text="layout.audiences.map(a => a === 'ir-lead' ? 'IR Lead' : a.charAt(0).toUpperCase() + a.slice(1)).join(' · ')"></span>
+                  </div>
+                </button>
+              </template>
+            </div>
+            <div class="design-gallery-selection" x-show="activeDesignLayoutDesc()">
+              <p class="design-gallery-selection-title">
+                <strong x-text="activeDesignLayout().label"></strong>
+                <span x-text="' · ' + activeDesignLayoutTagline()"></span>
+              </p>
+              <p class="design-toolbar-desc" x-text="activeDesignLayoutDesc()"></p>
+              <div class="design-case-file-switch" x-show="isCaseFileFamilyActive()">
+                <span class="design-toolbar-label">Case file style</span>
+                <div class="design-variant-chips">
+                  <template x-for="opt in caseFileLayoutOptions()" :key="opt.id">
+                    <button
+                      type="button"
+                      class="design-variant-chip"
+                      :class="{ active: designLayout === opt.id }"
+                      @click="applyDesignLayout(opt.id)"
+                      x-text="opt.label.replace('Case file · ', '')"
+                    ></button>
+                  </template>
+                </div>
+              </div>
             </div>
           </div>
         </header>
 
-        <div class="design-layout" :class="{ 'design-layout-full': vizType !== 'compare' }">
-        <aside class="design-options" x-show="vizType === 'compare'">
-          <h3 class="sidebar-heading">Comparison timeline</h3>
-          <input type="file" accept=".json" @change="loadCompareTimeline($event)">
-          <p x-show="compareLabel" style="font-size:.78rem;color:var(--muted)">
-            Loaded: <span x-text="compareLabel"></span>
-            <button class="btn-link" @click="clearCompareTimeline()">clear</button>
-          </p>
-        </aside>
-        <div class="design-preview-main">
-          <div class="preview-quality-bar" x-show="tab === 'design' && timeline.events.length">
-            <span>Preview layout:
-              <strong :class="previewLayoutClass()" x-text="previewLayoutScore != null ? previewLayoutScore + '/100' : '—'"></strong>
-            </span>
-            <span class="preview-quality-hint preview-quality-warn" x-show="previewLayoutOverflow > 0" x-text="previewLayoutOverflow + ' overflow issue(s)'"></span>
-            <button type="button" class="btn btn-sm" @click="runLayoutAudit()">Re-check</button>
+        <div class="publish-main">
+          <div class="publish-preview-column">
+            <div class="preview-quality-bar" x-show="tab === 'publish' && timeline.events.length">
+              <span>Layout quality:
+                <strong :class="previewLayoutClass()" x-text="previewLayoutScore != null ? previewLayoutScore + '/100' : '—'"></strong>
+              </span>
+              <span class="preview-quality-hint preview-quality-warn" x-show="previewLayoutOverflow > 0" x-text="previewLayoutOverflow + ' overflow issue(s)'"></span>
+              <button type="button" class="btn btn-sm" @click="runLayoutAudit()" data-tip="Re-scan the preview for text overflow and export readiness">Check layout</button>
+            </div>
+            <div class="viz-preview-wrap viz-preview-clickable" id="viz-preview-wrap" @click="handlePreviewClick($event)">
+              <div id="viz-preview"></div>
+            </div>
           </div>
-          <div class="viz-preview-wrap viz-preview-clickable" id="viz-preview-wrap" @click="handlePreviewClick($event)">
-            <div id="viz-preview"></div>
-          </div>
-        </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- OUTPUT -->
-    <section class="panel tab-panel" :class="{ 'is-active': tab === 'output' }">
-      <h2 class="panel-heading">Export & publish</h2>
-      <label class="checkbox-row output-filter-option">
-        <input type="checkbox" x-model="timeline.meta.applyEditFiltersToExport" @change="scheduleSave()">
-        Export filtered events only
-      </label>
-      <p class="input-hint output-filter-hint" x-show="timeline.meta.applyEditFiltersToExport && filterIsActive()">
-        Exporting <strong x-text="exportTimeline().events.length"></strong> of <strong x-text="timeline.events.length"></strong> events.
-      </p>
-      <div class="output-grid">
-        <div class="output-card" @click="openAnonymizeModal()" data-tip="Replace hosts, users, and IPs with placeholders">
-          <div class="icon">🔒</div>
-          <strong>Anonymize</strong>
-        </div>
-        <div class="output-card" @click="exportAs('executive-pdf')" data-tip="Portrait one-page executive summary PDF">
-          <div class="icon">📰</div>
-          <strong>Executive one-pager (PDF)</strong>
-        </div>
-        <div class="output-card" @click="exportAs('pptx')" data-tip="Slide deck with title, phases, and event tables">
-          <div class="icon">📊</div>
-          <strong>PowerPoint</strong>
-        </div>
-        <div class="output-card" @click="exportAs('appendix-pdf')" data-tip="Doc-width timeline chart + event table (same as DESIGN appendix viz)">
-          <div class="icon">📎</div>
-          <strong>Appendix page (PDF)</strong>
-        </div>
-        <div class="output-card" @click="exportAs('appendix-png')" data-tip="PNG snapshot of the appendix layout">
-          <div class="icon">🗂</div>
-          <strong>Appendix page (PNG)</strong>
-        </div>
-        <div class="output-card" @click="exportAs('markdown')" data-tip="GitHub-flavored table for reports">
-          <div class="icon">📝</div>
-          <strong>Markdown table</strong>
-        </div>
-        <div class="output-card" @click="exportAs('docx')" data-tip="Word document with appendix snapshot and full event table">
-          <div class="icon">📃</div>
-          <strong>Word document</strong>
-        </div>
-        <div class="output-card" @click="exportAs('report-pack')" data-tip="ZIP with executive PDF, appendix PDF, Word, Markdown, JSON, and STIX">
-          <div class="icon">📦</div>
-          <strong>Report pack</strong>
-        </div>
-        <div class="output-card" @click="exportAs('appendix-pptx')" data-tip="Minimal PowerPoint deck with appendix timeline slide">
-          <div class="icon">📑</div>
-          <strong>Appendix slide (PPTX)</strong>
-        </div>
-        <div class="output-card" @click="exportAs('csv')" data-tip="Comma-separated values for spreadsheets">
-          <div class="icon">📋</div>
-          <strong>CSV export</strong>
-        </div>
-        <div class="output-card" @click="exportAs('ical')" data-tip="Calendar events for Outlook or Google Calendar">
-          <div class="icon">📅</div>
-          <strong>iCalendar (.ics)</strong>
-        </div>
-        <div class="output-card" @click="exportAs('html')" data-tip="Self-contained offline HTML page">
-          <div class="icon">🌐</div>
-          <strong>Interactive HTML</strong>
-        </div>
-        <div class="output-card" @click="exportAs('png')" data-tip="High-resolution PNG snapshot of DESIGN preview">
-          <div class="icon">🖼</div>
-          <strong>PNG image</strong>
-        </div>
-        <div class="output-card" @click="exportAs('pdf')" data-tip="PDF document for print or email">
-          <div class="icon">📄</div>
-          <strong>PDF report</strong>
-        </div>
-        <div class="output-card" @click="exportAs('svg')" data-tip="Scalable vector graphic from preview">
-          <div class="icon">◇</div>
-          <strong>SVG vector</strong>
-        </div>
-        <div class="output-card" @click="exportAs('print')" data-tip="Open browser print dialog">
-          <div class="icon">🖨</div>
-          <strong>Print</strong>
-        </div>
-        <div class="output-card" @click="downloadShareFile()" data-tip="Download timeline JSON to share via email">
-          <div class="icon">📤</div>
-          <strong>Share file</strong>
-        </div>
-        <div class="output-card" @click="exportAs('json')" data-tip="Machine-readable timeline JSON">
-          <div class="icon">{ }</div>
-          <strong>JSON data</strong>
-        </div>
-        <div class="output-card" @click="exportAs('stix')" data-tip="STIX 2.1 bundle for threat intel platforms">
-          <div class="icon">⬡</div>
-          <strong>STIX 2.1 bundle</strong>
-        </div>
-        <div class="output-card" @click="exportAs('link')">
-          <div class="icon">🔗</div>
-          <strong>Shareable link</strong>
-        </div>
-        <div class="output-card" x-show="compareTimeline?.events?.length" @click="exportDiffAs('markdown')">
-          <div class="icon">≠</div>
-          <strong>Diff report</strong>
-        </div>
-        <div class="output-card" x-show="compareTimeline?.events?.length" @click="exportDiffAs('csv')">
-          <div class="icon">≠</div>
-          <strong>Diff CSV</strong>
+          <aside class="publish-deliver" x-show="timeline.events.length">
+            <h2 class="publish-deliver-heading">Deliver</h2>
+            <label class="checkbox-row output-filter-option">
+              <input type="checkbox" x-model="timeline.meta.applyEditFiltersToExport" @change="scheduleSave()">
+              Export filtered events only
+            </label>
+            <p class="input-hint output-filter-hint" x-show="timeline.meta.applyEditFiltersToExport && filterIsActive()">
+              Exporting <strong x-text="exportTimeline().events.length"></strong> of <strong x-text="timeline.events.length"></strong> events.
+            </p>
+
+            <div class="publish-primary-actions" x-show="primaryPublishActions().length">
+              <template x-for="item in primaryPublishActions()" :key="'primary-' + item.type">
+                <button type="button" class="btn btn-primary publish-primary-btn" @click="runPublishExport(item.type)">
+                  <span x-text="item.icon"></span>
+                  <span x-text="item.label"></span>
+                </button>
+              </template>
+            </div>
+
+            <div class="publish-export-groups">
+              <template x-for="section in publishSectionsForLayout()" :key="section.id">
+                <details class="publish-export-group" :open="section.defaultOpen">
+                  <summary>
+                    <span x-text="section.title"></span>
+                    <span class="publish-export-group-hint" x-text="section.hint"></span>
+                  </summary>
+                  <div class="output-grid publish-export-grid">
+                    <template x-for="item in section.items" :key="section.id + item.type">
+                      <div
+                        class="output-card"
+                        :class="{ 'output-card-featured': isRecommendedExport(item.type) }"
+                        @click="runPublishExport(item.type)"
+                        :data-tip="item.label"
+                      >
+                        <div class="icon" x-text="item.icon"></div>
+                        <strong x-text="item.label"></strong>
+                      </div>
+                    </template>
+                  </div>
+                </details>
+              </template>
+
+              <details class="publish-export-group" x-show="compareTimeline?.events?.length">
+                <summary>Baseline diff</summary>
+                <div class="output-grid publish-export-grid">
+                  <div class="output-card" @click="exportDiffAs('markdown')">
+                    <div class="icon">≠</div>
+                    <strong>Diff report</strong>
+                  </div>
+                  <div class="output-card" @click="exportDiffAs('csv')">
+                    <div class="icon">≠</div>
+                    <strong>Diff CSV</strong>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </aside>
         </div>
       </div>
     </section>
@@ -1106,8 +1137,8 @@
       <dl class="shortcuts-list">
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>1</kbd></dt><dd>INPUT tab</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>2</kbd></dt><dd>EDIT tab</dd>
-        <dt><kbd>⌘/Ctrl</kbd> + <kbd>3</kbd></dt><dd>DESIGN tab</dd>
-        <dt><kbd>⌘/Ctrl</kbd> + <kbd>4</kbd></dt><dd>OUTPUT tab</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>3</kbd></dt><dd>PUBLISH tab</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>4</kbd></dt><dd>PUBLISH tab</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>N</kbd></dt><dd>New timeline (clear workspace)</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>S</kbd></dt><dd>Save draft</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>O</kbd></dt><dd>Open timeline JSON</dd>
@@ -1117,7 +1148,7 @@
         <dt><kbd>↑</kbd> / <kbd>↓</kbd></dt><dd>EDIT focus prev/next row</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>Z</kbd></dt><dd>Undo</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>⇧Z</kbd></dt><dd>Redo</dd>
-        <dt><kbd>⌘/Ctrl</kbd> + <kbd>P</kbd></dt><dd>Print (in DESIGN)</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>P</kbd></dt><dd>Print (in PUBLISH)</dd>
         <dt><kbd>?</kbd></dt><dd>This help</dd>
       </dl>
       <div class="modal-actions">

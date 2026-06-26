@@ -37,6 +37,21 @@ const sampleEvents = [
 ];
 
 describe('formatDwellTime', () => {
+  it('uses full words for hours and minutes', () => {
+    assert.equal(
+      formatDwellTime('2024-01-01T00:00:00Z', '2024-01-01T23:00:00Z'),
+      '23 hours',
+    );
+    assert.equal(
+      formatDwellTime('2024-01-01T00:00:00Z', '2024-01-01T00:45:00Z'),
+      '45 minutes',
+    );
+    assert.equal(
+      formatDwellTime('2024-01-01T00:00:00Z', '2024-01-01T00:00:30Z'),
+      'less than 1 minute',
+    );
+  });
+
   it('uses full month words for long spans', () => {
     assert.equal(
       formatDwellTime('2023-01-01T00:00:00Z', '2024-08-01T00:00:00Z'),

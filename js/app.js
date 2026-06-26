@@ -4,11 +4,13 @@ import { collapseDuplicateEvents } from './edit/merge-events.js';
 import { analyzeTimeline, applySuggestion, analysisIssues, analysisRecommendations } from './edit/analyzer.js';
 import { buildActivityPreview } from './edit/activity-preview.js';
 import { anonymizeTimeline, scanTimeline } from './edit/anonymize.js';
+import { extractObservables, observablesToCsv, observablesToText } from './edit/observables.js';
 import {
   countByField,
   countByTag,
   filterEvents,
   filtersActive,
+  observableFilterState,
   toggleSingleFilter,
   uniqueFieldValues,
   uniqueTagValues,
@@ -24,11 +26,25 @@ import {
   undoHistory,
 } from './edit/history.js';
 import {
+  DESIGN_AUDIENCES,
+  DESIGN_LAYOUTS,
+  audienceLabel,
+  caseFileLayouts,
+  designToViz,
+  isCaseFileLayout,
+  layoutById,
+  layoutExportHints,
+  layoutsForAudience,
+  suggestLayoutId,
+  vizToDesign,
+} from './design/design-picker.js';
+import {
   listCustomRenderers,
   loadBuiltinPlugins,
 } from './design/plugins.js';
 import { MITRE_TECHNIQUES } from './data/mitre-techniques.js';
 import { processInput, parseInputHint, processInputDetailed } from './input/parser.js';
+import { detectInputFormat } from './input/detect-format.js';
 import { serializeEventsToSource, sourceFormatForInputMode } from './input/serialize.js';
 import { parseIrTool } from './input/ir-tools.js';
 import { exportJSON, exportPDF, exportPNG, exportStandaloneHTML } from './output/export.js';
@@ -47,6 +63,13 @@ import { downloadSharePack } from './output/share-pack.js';
 import { findPreviewEventTarget, stepEventIndex } from './edit/event-focus.js';
 import { clearDraft, draftAgeLabel, loadDraft, loadDraftAsync, migrateLegacyStorage, saveDraft } from './storage.js';
 import { accentHoverColor, DEFAULT_ACCENT, normalizeAccentColor } from './theme.js';
+import {
+  applyUserSettingsToMeta,
+  hasUserSettingsCookie,
+  loadUserSettings,
+  readUserSettingsFromMeta,
+  saveUserSettings,
+} from './user-settings.js';
 import { COMMON_TIMEZONES, resolveTimezone, timezoneLabel, timezoneShortLabel, browserTimezone } from './timezones.js';
 import { APP_CONTACT_EMAIL, APP_CONTACT_NAME, APP_DESCRIPTION, APP_FULL_TITLE, APP_NAME, APP_SUBTITLE, APP_VERSION } from './version.js';
 import { createEmptyTimeline } from './workspace.js';
@@ -159,6 +182,7 @@ export function createApp() {
 
     inputError: '',
     inputParseStats: null,
+    detectedFormatHint: '',
 
     compareTimeline: null,
     compareLabel: '',
@@ -175,26 +199,61 @@ export function createApp() {
 
     headerExportSections: [
       {
-        title: 'Visual reports',
+        title: 'Share',
         items: [
-          { type: 'executive-pdf', label: 'Executive one-pager (PDF)' },
-          { type: 'pdf', label: 'PDF report' },
-          { type: 'appendix-pdf', label: 'Appendix page (PDF)' },
-          { type: 'png', label: 'PNG snapshot' },
-          { type: 'appendix-png', label: 'Appendix page (PNG)' },
-          { type: 'pptx', label: 'PowerPoint' },
-          { type: 'appendix-pptx', label: 'Appendix slide (PPTX)' },
-          { type: 'docx', label: 'Word document' },
-          { type: 'report-pack', label: 'Report pack (ZIP)' },
+          { type: 'link', label: 'Shareable link' },
+          { type: 'share-file', label: 'Share file' },
+        ],
+      },
+    ],
+
+    publishDeliverSections: [
+      {
+        id: 'this-view',
+        title: 'This view',
+        hint: 'Exports exactly what you see in the preview above.',
+        defaultOpen: true,
+        items: [
+          { type: 'png', label: 'PNG image', icon: '🖼' },
+          { type: 'pdf', label: 'PDF document', icon: '📄' },
+          { type: 'svg', label: 'SVG vector', icon: '◇' },
+          { type: 'print', label: 'Print', icon: '🖨' },
         ],
       },
       {
-        title: 'Data exports',
+        id: 'report-templates',
+        title: 'Report templates',
+        hint: 'Built-in report layouts — not the current preview.',
         items: [
-          { type: 'json', label: 'JSON timeline' },
-          { type: 'csv', label: 'CSV spreadsheet' },
-          { type: 'markdown', label: 'Markdown table' },
-          { type: 'stix', label: 'STIX 2.1 bundle' },
+          { type: 'executive-pdf', label: 'Executive one-pager (PDF)', icon: '📰' },
+          { type: 'appendix-pdf', label: 'Appendix page (PDF)', icon: '📎' },
+          { type: 'appendix-png', label: 'Appendix page (PNG)', icon: '🗂' },
+          { type: 'report-pack', label: 'Report pack (ZIP)', icon: '📦' },
+          { type: 'docx', label: 'Word document', icon: '📃' },
+          { type: 'pptx', label: 'PowerPoint', icon: '📊' },
+          { type: 'appendix-pptx', label: 'Appendix slide (PPTX)', icon: '📑' },
+        ],
+      },
+      {
+        id: 'data',
+        title: 'Data & integrations',
+        hint: 'Structured exports for tools, spreadsheets, and threat intel.',
+        items: [
+          { type: 'markdown', label: 'Markdown table', icon: '📝' },
+          { type: 'csv', label: 'CSV export', icon: '📋' },
+          { type: 'json', label: 'JSON data', icon: '{ }' },
+          { type: 'stix', label: 'STIX 2.1 bundle', icon: '⬡' },
+          { type: 'ical', label: 'iCalendar (.ics)', icon: '📅' },
+        ],
+      },
+      {
+        id: 'share',
+        title: 'Share & deliver',
+        hint: 'Portable timeline for colleagues and stakeholders.',
+        items: [
+          { type: 'link', label: 'Shareable link', icon: '🔗' },
+          { type: 'share-file', label: 'Share file', icon: '📤' },
+          { type: 'html', label: 'Interactive HTML', icon: '🌐' },
         ],
       },
     ],
@@ -240,6 +299,10 @@ export function createApp() {
 
     vizType: 'activity-strip',
     vizStyle: 'default',
+    designAudience: 'all',
+    designLayout: 'horizon-strip',
+    designAudiences: DESIGN_AUDIENCES,
+    designLayouts: DESIGN_LAYOUTS,
     categories: CATEGORIES,
 
     vizTypes: [
@@ -265,17 +328,18 @@ export function createApp() {
       this.ensureTimelineMeta();
 
       this.$watch('tab', (t) => {
-        if (t === 'design') this.$nextTick(() => this.renderPreview());
+        if (t === 'publish') this.$nextTick(() => this.renderPreview());
       });
       this.$watch('vizType', () => {
         this.normalizeVizSelection();
+        this.syncDesignFromViz();
         this.$nextTick(() => this.renderPreview());
       });
       this.$watch('compareView', () => {
         if (!this.timeline.meta) this.timeline.meta = {};
         this.timeline.meta.compareView = this.compareView;
         this.scheduleSave();
-        if (this.tab === 'design' && this.vizType === 'compare') {
+        if (this.tab === 'publish' && this.vizType === 'compare') {
           this.vizStyle = this.compareView;
           this.$nextTick(() => this.renderPreview());
         }
@@ -293,24 +357,128 @@ export function createApp() {
       this.initPlugins();
       this.loadEditViewMode();
       this.normalizeVizSelection();
+      this.syncDesignFromViz();
       this.bootstrapFromUrlOrDraft();
+    },
+
+    syncDesignFromViz() {
+      let d = vizToDesign(this.vizType, this.vizStyle, this.compareView);
+      const metaId = this.timeline.meta?.designLayout || this.timeline.meta?.designVariant;
+      if (metaId) {
+        const fromMeta = designToViz(metaId);
+        if (fromMeta.vizType === this.vizType && (fromMeta.vizStyle || 'default') === (this.vizStyle || 'default')) {
+          d = { layoutId: fromMeta.layoutId };
+        }
+      }
+      this.designLayout = d.layoutId;
+    },
+
+    filteredDesignLayouts() {
+      return layoutsForAudience(this.designAudience);
+    },
+
+    activeDesignLayout() {
+      return layoutById(this.designLayout);
+    },
+
+    activeDesignLayoutDesc() {
+      return this.activeDesignLayout()?.desc || '';
+    },
+
+    activeDesignLayoutTagline() {
+      return this.activeDesignLayout()?.tagline || '';
+    },
+
+    setDesignAudience(audienceId) {
+      this.designAudience = audienceId;
+    },
+
+    applyDesignLayout(layoutId) {
+      const mapped = designToViz(layoutId);
+      this.designLayout = mapped.layoutId;
+      this.vizType = mapped.vizType;
+      this.vizStyle = mapped.vizStyle || 'default';
+      if (this.timeline.meta) {
+        this.timeline.meta.designLayout = mapped.layoutId;
+        delete this.timeline.meta.designFormat;
+        delete this.timeline.meta.designOrientation;
+        delete this.timeline.meta.designVariant;
+      }
+      this.normalizeVizSelection();
+      this.scheduleSave();
+      this.$nextTick(() => this.renderPreview());
+    },
+
+    isCaseFileFamilyActive() {
+      return isCaseFileLayout(this.designLayout);
+    },
+
+    caseFileLayoutOptions() {
+      return caseFileLayouts();
+    },
+
+    allPublishExportItems() {
+      return this.publishDeliverSections.flatMap((section) => section.items);
+    },
+
+    primaryPublishActions() {
+      const hints = layoutExportHints(this.designLayout);
+      const byType = new Map(this.allPublishExportItems().map((item) => [item.type, item]));
+      return hints.map((type) => byType.get(type)).filter(Boolean).slice(0, 3);
+    },
+
+    headerExportMenuSections() {
+      const quick = this.primaryPublishActions().map((item) => ({
+        type: item.type,
+        label: item.label,
+      }));
+      const sections = [];
+      if (quick.length) sections.push({ title: 'Quick export', items: quick });
+      sections.push(...this.headerExportSections);
+      return sections;
+    },
+
+    publishSectionsForLayout() {
+      return this.publishDeliverSections;
+    },
+
+    isRecommendedExport(type) {
+      return layoutExportHints(this.designLayout).includes(type);
+    },
+
+    runPublishExport(type) {
+      if (type === 'share-file') return this.downloadShareFile();
+      return this.exportAs(type);
+    },
+
+    suggestDesignLayout() {
+      this.applySuggestedDesignLayout({ force: true });
+    },
+
+    applySuggestedDesignLayout({ force = false } = {}) {
+      const saved = this.timeline.meta?.designLayout;
+      if (saved && !force) return;
+      const id = suggestLayoutId(this.timeline.events?.length || 0);
+      this.applyDesignLayout(id);
     },
 
     normalizeVizSelection() {
       const legacy = { icons: 'default', fahrplan: 'metro', mermaid: 'sequence', retro: 'default', scribing: 'default' };
       if (legacy[this.vizStyle]) this.vizStyle = legacy[this.vizStyle];
       if (this.vizType === 'compare') {
-        const view = this.compareView || this.timeline.meta?.compareView || 'gantt';
-        this.compareView = view;
-        this.vizStyle = view;
-        return;
+        this.vizType = 'activity-strip';
+        this.vizStyle = 'default';
       }
-      if (this.vizType === 'activity-strip' || this.vizType === 'appendix-timeline') {
+      if (this.vizType === 'activity-strip' || this.vizType === 'appendix-timeline' || this.vizType === 'event-stack' || this.vizType === 'host-lanes' || this.vizType === 'evidence-table' || this.vizType === 'milestone-storyboard') {
         this.vizStyle = 'default';
         return;
       }
+      if (this.vizType === 'soc-details' && this.vizStyle === 'case-full') return;
       const compareIds = new Set(this.compareViews.map((v) => v.id));
-      if (compareIds.has(this.vizStyle)) this.vizStyle = 'default';
+      // "gantt" is both a compare view and a soc-details layout style
+      if (compareIds.has(this.vizStyle) && !(this.vizType === 'soc-details' && this.vizStyle === 'gantt')) {
+        this.vizStyle = 'default';
+      }
       const available = new Set(this.availableVizStyles().map((s) => s.id));
       if (!available.has(this.vizStyle)) this.vizStyle = 'default';
     },
@@ -322,7 +490,7 @@ export function createApp() {
     },
 
     showVizStylePicker() {
-      return this.vizType !== 'activity-strip' && this.vizType !== 'appendix-timeline';
+      return false;
     },
 
     selectedVizType() {
@@ -339,11 +507,12 @@ export function createApp() {
         if (shared?.events) {
           this.timeline = shared;
           this.ensureTimelineMeta();
+          this.applyStoredUserSettings();
           this.afterTimelineLoad();
           if (this.refreshEventDetails()) this.scheduleSave();
           this.applyTheme();
           this.notifyTimelineChanged({ skipSourceSync: true });
-          this.tab = 'design';
+          this.tab = 'publish';
           appHistory = createHistory(this.timeline);
           this.scheduleAutoAnalyze();
           return;
@@ -358,6 +527,7 @@ export function createApp() {
         this.compareTimeline = draft.compareTimeline || null;
         this.draftSavedAt = draft.savedAt;
         this.ensureTimelineMeta();
+        this.applyStoredUserSettings();
         this.afterTimelineLoad();
         if (this.refreshEventDetails()) this.scheduleSave();
         this.applyTheme();
@@ -426,7 +596,26 @@ export function createApp() {
       if (!text?.trim()) return;
       e.preventDefault();
       this.inputText = text;
+      this.applyInputDetection(text);
       this.statusMessage = 'Pasted from clipboard — parsing…';
+    },
+
+    onSourcePaste(e) {
+      const text = e.clipboardData?.getData('text/plain');
+      if (!text?.trim()) return;
+      this.applyInputDetection(text);
+    },
+
+    applyInputDetection(text) {
+      const detected = detectInputFormat(text);
+      if (!detected) {
+        this.detectedFormatHint = '';
+        return;
+      }
+      this.inputMode = detected.mode;
+      if (detected.importTool) this.importTool = detected.importTool;
+      const suffix = detected.confidence === 'high' ? '' : ' (best guess)';
+      this.detectedFormatHint = `Detected: ${detected.label}${suffix}`;
     },
 
     notifyTimelineChanged(options = {}) {
@@ -470,6 +659,7 @@ export function createApp() {
       this.ensureTimelineMeta();
       this.ensureSourceText();
       this.hydrateInputFromTimeline();
+      this.syncDesignFromViz();
     },
 
     syncSourceFromEvents() {
@@ -547,7 +737,7 @@ export function createApp() {
     scheduleRenderPreview() {
       clearTimeout(previewTimer);
       previewTimer = setTimeout(() => {
-        if (this.tab === 'design') this.renderPreview();
+        if (this.tab === 'publish') this.renderPreview();
       }, 250);
     },
 
@@ -630,6 +820,19 @@ export function createApp() {
       if (this.compareTimeline?.events) this.ensureEventIds(this.compareTimeline.events);
     },
 
+    /** Cookie-backed UI prefs (theme, timezone, accent) survive sample/file loads. */
+    applyStoredUserSettings() {
+      if (hasUserSettingsCookie()) {
+        applyUserSettingsToMeta(this.timeline.meta, loadUserSettings());
+      } else {
+        saveUserSettings(readUserSettingsFromMeta(this.timeline.meta));
+      }
+    },
+
+    persistUserSettings() {
+      saveUserSettings(readUserSettingsFromMeta(this.timeline.meta));
+    },
+
     /** Assign ids to legacy or hand-edited events missing them (required for diff keys). */
     ensureEventIds(events) {
       if (!events?.length) return;
@@ -674,6 +877,7 @@ export function createApp() {
 
     setDisplayTimezone(id) {
       this.timeline.meta.timezone = id;
+      this.persistUserSettings();
       this.closeHeaderMenu();
       this.notifyTimelineChanged({ skipHistory: true });
     },
@@ -699,6 +903,41 @@ export function createApp() {
         return `${showing}/${total}`;
       }
       return String(total);
+    },
+
+    timelineObservables() {
+      const events = this.filterIsActive() ? this.filteredEditEvents() : (this.timeline.events || []);
+      return extractObservables(events);
+    },
+
+    async copyObservables() {
+      const text = observablesToText(this.timelineObservables());
+      if (!text) {
+        this.statusMessage = 'No observables found in timeline.';
+        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        this.statusMessage = 'Observables copied to clipboard.';
+      } catch {
+        this.statusMessage = 'Could not copy observables.';
+      }
+      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+    },
+
+    async downloadObservablesCsv() {
+      const obs = this.timelineObservables();
+      if (!obs.total) {
+        this.statusMessage = 'No observables found in timeline.';
+        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        return;
+      }
+      const { downloadText } = await import('./output/table-export.js');
+      const base = exportBasename(this.timeline.meta);
+      downloadText(observablesToCsv(obs), `${base}-observables.csv`, 'text/csv');
+      this.statusMessage = `Exported ${obs.total} observable(s).`;
+      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
     },
 
     incidentCatBarWidth(count) {
@@ -735,7 +974,7 @@ export function createApp() {
 
     onIncidentMetaChange() {
       this.scheduleSave();
-      if (this.tab === 'design') this.$nextTick(() => this.renderPreview());
+      if (this.tab === 'publish') this.$nextTick(() => this.renderPreview());
     },
 
     activePhases() {
@@ -763,7 +1002,7 @@ export function createApp() {
     resetPhasesToDefault() {
       this.timeline.meta.customPhases = null;
       this.notifyTimelineChanged();
-      if (this.tab === 'design') this.$nextTick(() => this.renderPreview());
+      if (this.tab === 'publish') this.$nextTick(() => this.renderPreview());
     },
 
     openPhasesModal() {
@@ -794,9 +1033,10 @@ export function createApp() {
 
     toggleTheme() {
       this.timeline.meta.theme = this.timeline.meta.theme === 'dark' ? 'light' : 'dark';
+      this.persistUserSettings();
       this.applyTheme();
       this.scheduleSave();
-      if (this.tab === 'design') this.$nextTick(() => this.renderPreview());
+      if (this.tab === 'publish') this.$nextTick(() => this.renderPreview());
     },
 
     brandLogoSrc() {
@@ -813,13 +1053,16 @@ export function createApp() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         this.timeline = await res.json();
         this.ensureTimelineMeta();
+        this.applyStoredUserSettings();
         this.applyTheme();
         appHistory = createHistory(this.timeline);
         this.afterTimelineLoad();
+        this.applySuggestedDesignLayout({ force: true });
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
         this.scheduleAutoAnalyze();
         const label = this.fileSamples.find((s) => s.id === id)?.label || id;
-        this.statusMessage = `Loaded ${label} (${this.timeline.events.length} events).`;
+        const layoutLabel = this.activeDesignLayout()?.label || 'layout';
+        this.statusMessage = `Loaded ${label} (${this.timeline.events.length} events) — ${layoutLabel} layout.`;
         setTimeout(() => { this.statusMessage = ''; }, 2500);
       } catch (e) {
         console.error('loadFileSample failed', e);
@@ -838,7 +1081,7 @@ export function createApp() {
       }
       this.timeline.events = linkSequentialEvents(events);
       this.notifyTimelineChanged();
-      this.statusMessage = 'Sequential links applied — try Attack flow in DESIGN.';
+      this.statusMessage = 'Sequential links applied — try Attack graph in PUBLISH.';
       setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 3000);
     },
 
@@ -880,12 +1123,14 @@ export function createApp() {
     applyJson() {},
 
     setTab(t) {
+      if (t === 'design' || t === 'output' || t === 'output-tab') t = 'publish';
       this.tab = t;
       this.closeHeaderMenu();
       this.closeAllModals();
       if (t === 'input' && this.timeline.events?.length) {
         this.syncSourceFromEvents();
       }
+      if (t === 'publish') this.$nextTick(() => this.renderPreview());
     },
 
     handleKeydown(e) {
@@ -905,7 +1150,7 @@ export function createApp() {
         return;
       }
       if (!(e.metaKey || e.ctrlKey)) return;
-      const map = { '1': 'input', '2': 'edit', '3': 'design', '4': 'output' };
+      const map = { '1': 'input', '2': 'edit', '3': 'publish', '4': 'publish' };
       if (map[e.key]) {
         e.preventDefault();
         this.setTab(map[e.key]);
@@ -925,7 +1170,7 @@ export function createApp() {
         e.preventDefault();
         this.redo();
       }
-      if (e.key === 'p' && this.tab === 'design') {
+      if (e.key === 'p' && this.tab === 'publish') {
         e.preventDefault();
         this.exportAs('print');
       }
@@ -944,7 +1189,7 @@ export function createApp() {
     },
 
     handlePreviewClick(event) {
-      if (this.tab !== 'design') return;
+      if (this.tab !== 'publish') return;
       const root = document.getElementById('viz-preview');
       const id = findPreviewEventTarget(event.target, root);
       if (id) this.openEventDetail(id);
@@ -1104,8 +1349,8 @@ export function createApp() {
 
     async headerExport(type) {
       this.closeHeaderMenu();
-      if (type === 'output-tab') {
-        this.setTab('output');
+      if (type === 'output-tab' || type === 'publish-tab') {
+        this.setTab('publish');
         return;
       }
       await this.exportAs(type);
@@ -1149,8 +1394,8 @@ export function createApp() {
         await this.exportAs('print');
         return;
       }
-      if (action === 'output-tab') {
-        this.setTab('output');
+      if (action === 'output-tab' || action === 'publish-tab') {
+        this.setTab('publish');
         return;
       }
       if (action === 'diff-markdown') {
@@ -1163,8 +1408,12 @@ export function createApp() {
       }
     },
 
+    openPublishTab() {
+      this.setTab('publish');
+    },
+
     openOutputTab() {
-      this.headerExport('output-tab');
+      this.openPublishTab();
     },
 
     openNewTimelineModal() {
@@ -1181,11 +1430,7 @@ export function createApp() {
     },
 
     resetWorkspace() {
-      const preserve = {
-        theme: this.timeline.meta?.theme,
-        timezone: this.timeline.meta?.timezone,
-        accentColor: this.timeline.meta?.accentColor,
-      };
+      const settings = loadUserSettings();
 
       clearDraft();
       clearTimeout(saveTimer);
@@ -1193,7 +1438,7 @@ export function createApp() {
       clearTimeout(analyzeTimer);
       clearTimeout(previewTimer);
 
-      this.timeline = createEmptyTimeline(preserve);
+      this.timeline = createEmptyTimeline(settings);
       this.ensureTimelineMeta();
       this.applyTheme();
 
@@ -1487,10 +1732,12 @@ export function createApp() {
         this.compareLabel = '';
         this.currentFileName = file.name;
         this.ensureTimelineMeta();
+        this.applyStoredUserSettings();
         if (this.refreshEventDetails()) this.scheduleSave();
         this.applyTheme();
         appHistory = createHistory(this.timeline);
         this.afterTimelineLoad();
+        this.applySuggestedDesignLayout();
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
         this.tab = 'input';
         this.statusMessage = `Opened ${file.name} (${this.timeline.events.length} events)`;
@@ -1540,6 +1787,34 @@ export function createApp() {
 
     selectHostFilter(host) {
       this.editHostFilter = toggleSingleFilter(this.editHostFilter, host);
+    },
+
+    filterByObservable(item) {
+      if (!item?.value) return;
+      const next = observableFilterState(item.value, this.uniqueHostnames(), {
+        search: this.editSearch,
+        host: this.editHostFilter,
+      });
+      this.editSearch = next.search;
+      this.editHostFilter = next.host;
+      this.editUserFilter = next.user;
+      this.editCategoryFilter = next.category;
+      this.editTagFilter = next.tag;
+      if (!filtersActive(next)) {
+        this.statusMessage = 'Cleared observable filter.';
+      } else if (next.host) {
+        this.statusMessage = `Filtering by host ${next.host}.`;
+      } else {
+        const label = item.value.length > 36 ? `${item.value.slice(0, 34)}…` : item.value;
+        this.statusMessage = `Filtering events containing ${label}.`;
+      }
+      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2200);
+    },
+
+    observableFilterActive(value) {
+      if (!value) return false;
+      if (this.editHostFilter === value) return true;
+      return this.editSearch.trim() === value;
     },
 
     selectUserFilter(user) {
@@ -1795,7 +2070,7 @@ export function createApp() {
 
     runLayoutAudit() {
       const el = document.getElementById('viz-preview');
-      if (!el || this.tab !== 'design') return;
+      if (!el || this.tab !== 'publish') return;
       const layout = auditPreviewLayout(el);
       this.previewLayoutScore = layout.score;
       this.previewLayoutOverflow = layout.overflowCount;
@@ -1813,8 +2088,8 @@ export function createApp() {
     },
 
     async prepareVisualExport(type) {
-      if (this.tab !== 'design') {
-        this.tab = 'design';
+      if (this.tab !== 'publish') {
+        this.tab = 'publish';
         await this.$nextTick();
       }
       this.renderPreview();
@@ -1822,7 +2097,7 @@ export function createApp() {
       const previewEl = document.getElementById('viz-preview');
       const exportTimeline = this.exportTimeline();
       const result = validateExport(exportTimeline, this.analysis, previewEl);
-      if (previewEl && this.tab === 'design') {
+      if (previewEl && this.tab === 'publish') {
         this.previewLayoutScore = result.layoutScore;
         this.previewLayoutOverflow = result.layoutOverflow ?? 0;
       }
@@ -1878,7 +2153,7 @@ export function createApp() {
         const text = await file.text();
         this.compareTimeline = JSON.parse(text);
         this.compareLabel = file.name;
-        this.vizType = 'compare';
+        this.ensureEventIds(this.compareTimeline.events);
         this.scheduleSave();
         this.$nextTick(() => this.renderPreview());
       } catch (e) {
@@ -1931,8 +2206,8 @@ export function createApp() {
 
     async runExport(type) {
       const visualTypes = ['png', 'pdf', 'pptx', 'svg', 'html', 'print'];
-      if (visualTypes.includes(type) && this.tab !== 'design') {
-        this.tab = 'design';
+      if (visualTypes.includes(type) && this.tab !== 'publish') {
+        this.tab = 'publish';
         await this.$nextTick();
         this.renderPreview();
         await delay(350);
@@ -2101,9 +2376,11 @@ export function createApp() {
 
       if (this.inputMode === 'import' || name.endsWith('.csv') || name.endsWith('.tsv')) {
         this.inputMode = 'import';
-        if (name.endsWith('.csv')) this.importTool = 'generic-csv';
         const reader = new FileReader();
-        reader.onload = () => { this.inputText = reader.result; };
+        reader.onload = () => {
+          this.inputText = reader.result;
+          this.applyInputDetection(reader.result);
+        };
         reader.readAsText(file);
         return;
       }

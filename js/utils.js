@@ -170,11 +170,11 @@ export function timelineSpanMonths(events) {
 export function formatDwellTime(earliest, latest) {
   if (!earliest || !latest) return '—';
   const ms = Math.max(0, Date.parse(latest) - Date.parse(earliest));
-  if (ms < 60_000) return '< 1 min';
+  if (ms < 60_000) return 'less than 1 minute';
   const mins = Math.floor(ms / 60_000);
-  if (mins < 60) return `${mins} min`;
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'}`;
   const hours = Math.floor(ms / 3_600_000);
-  if (hours < 48) return `${hours} hr${hours === 1 ? '' : 's'}`;
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'}`;
   const days = Math.floor(ms / 86_400_000);
   if (days < 60) return `${days} day${days === 1 ? '' : 's'}`;
   const months = Math.max(1, Math.round(days / 30));

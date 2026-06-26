@@ -25,8 +25,8 @@ test.describe('TimelineForge UI', () => {
 
   test('tab buttons switch panels', async ({ page }) => {
     await page.goto('/');
-    const tabs = ['INPUT', 'EDIT', 'DESIGN', 'OUTPUT'];
-    const headings = [/Source data/i, /Timeline events/i, /Visualization/i, /Export & publish/i];
+    const tabs = ['INPUT', 'EDIT', 'PUBLISH'];
+    const headings = [/Source data/i, /Timeline events/i, /Deliver/i];
 
     for (let i = 0; i < tabs.length; i++) {
       await page.getByRole('button', { name: tabs[i], exact: true }).click();
@@ -67,12 +67,9 @@ test.describe('TimelineForge UI', () => {
     await page.getByRole('button', { name: 'Export', exact: true }).click();
     const exportMenu = page.locator('.header-dropdown').nth(2).getByRole('menu');
     await expect(exportMenu).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: 'Executive one-pager (PDF)' })).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: 'PDF report' })).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: 'Appendix page (PDF)' })).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: 'STIX 2.1 bundle' })).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: 'JSON timeline' })).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: /All export formats/i })).toBeVisible();
+    await expect(exportMenu.getByRole('menuitem', { name: 'Shareable link' })).toBeVisible();
+    await expect(exportMenu.getByRole('menuitem', { name: 'Share file' })).toBeVisible();
+    await expect(exportMenu.getByRole('menuitem', { name: /Open Publish tab/i })).toBeVisible();
 
     await expect(page.getByRole('button', { name: 'Share', exact: true })).toBeVisible();
   });
@@ -104,5 +101,31 @@ test.describe('TimelineForge UI', () => {
     await expect(page.locator('.modal-backdrop.is-open')).toHaveCount(0);
     await page.getByRole('button', { name: 'EDIT', exact: true }).click();
     await expect(page.locator('.edit-main [data-event-id]')).toHaveCount(0);
+  });
+
+  test('sample load picks a suggested publish layout', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'File', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Samples' }).click();
+    await page.locator('.header-submenu').getByRole('menuitem', { name: 'APT breach' }).click();
+    await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+    await expect(page.locator('.design-gallery-card.active')).toContainText('Swimlane timeline');
+  });
+
+  test('observable click filters edit events', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'File', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Samples' }).click();
+    await page.locator('.header-submenu').getByRole('menuitem', { name: 'Business email compromise' }).click();
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await expect(page.locator('.observables-sidebar')).toBeVisible({ timeout: 15000 });
+    const total = await page.locator('.edit-main [data-event-id]').count();
+    const firstObservable = page.locator('.observables-row').first();
+    await firstObservable.click();
+    await expect(page.locator('.edit-subtitle')).toContainText('filtered');
+    const filtered = await page.locator('.edit-main [data-event-id]').count();
+    expect(filtered).toBeLessThan(total);
+    await firstObservable.click();
+    await expect(page.locator('.edit-main [data-event-id]')).toHaveCount(total);
   });
 });

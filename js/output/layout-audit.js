@@ -7,6 +7,8 @@ const OVERFLOW_SELECTORS = [
   '.chevron-body p',
   '.ciso-col li',
   '.ciso-takeaway p',
+  '.event-stack-details',
+  '.event-stack-head time',
   '.overview-event-box p',
   '.overview-event-box time',
   '.overview-phase-text p',
@@ -57,12 +59,24 @@ function isVisible(el) {
 
 function checkOverflow(el) {
   if (!isVisible(el)) return null;
+  if (usesIntentionalClamp(el)) return null;
   const pad = 2;
   if (el.scrollWidth > el.clientWidth + pad || el.scrollHeight > el.clientHeight + pad) {
     const snippet = (el.textContent || '').trim().slice(0, 48);
     return snippet ? `"${snippet}${snippet.length >= 48 ? '…' : ''}"` : el.className || el.tagName;
   }
   return null;
+}
+
+function usesIntentionalClamp(el) {
+  const style = getComputedStyle(el);
+  const clamp = style.webkitLineClamp || style.lineClamp;
+  if (clamp && clamp !== 'none' && clamp !== '0') return true;
+  if (style.overflow === 'hidden' && style.textOverflow === 'ellipsis') return true;
+  if (style.overflow === 'hidden' && (style.display === '-webkit-box' || el.classList.contains('ciso-ms-card'))) {
+    return true;
+  }
+  return false;
 }
 
 function rectsOverlap(a, b, tolerance = 1) {
@@ -133,8 +147,8 @@ function auditSwimlaneClipping(root) {
  */
 export function auditPreviewLayout(root) {
   const items = [];
-  if (!root?.querySelector('.viz-ciso, .viz-overview, .viz-phase-columns, .viz-soc, .viz-gantt, .viz-compare, .viz-retro, .viz-scribing, .viz-fahrplan, .attack-flow-svg, .viz-mermaid')) {
-    items.push({ severity: 'warning', message: 'Preview is empty — load events and open DESIGN first.' });
+  if (!root?.querySelector('.viz-ciso, .viz-overview, .viz-phase-columns, .viz-soc, .viz-event-stack, .viz-host-lanes, .viz-evidence-table, .viz-storyboard, .viz-gantt, .viz-compare, .viz-retro, .viz-scribing, .viz-fahrplan, .attack-flow-svg, .viz-mermaid')) {
+    items.push({ severity: 'warning', message: 'Preview is empty — load events and open PUBLISH first.' });
     return { score: 0, overflowCount: 0, items };
   }
 

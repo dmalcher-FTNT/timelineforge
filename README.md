@@ -17,17 +17,16 @@
 </p>
 
 <p align="center">
-  <sub>DESIGN · EDIT · OUTPUT — APT breach sample timeline</sub>
+  <sub>PUBLISH · EDIT — APT breach sample timeline</sub>
 </p>
 
 ## What it does
 
-**INPUT → EDIT → DESIGN → OUTPUT** in the browser. No backend, no account — incident data stays local.
+**INPUT → EDIT → PUBLISH** in the browser. No backend, no account — incident data stays local.
 
 - **Import** manual snippets, markdown tables, PDF/DOCX, and **23 IR tools** (Splunk, Sentinel, KAPE, Hayabusa, EvtxECmd, CrowdStrike, Defender, Elastic, MISP, …)
-- **Edit** with filters, bulk updates, merge duplicates, quality checks, and baseline diff
-- **Design** executive summaries, SOC cards, phase swimlanes, appendix layouts, and more
-- **Export** executive PDF, report pack (ZIP), PPTX, Word, STIX 2.1, share links, and offline HTML
+- **Edit** with filters, observables, bulk updates, merge duplicates, quality checks, and baseline diff
+- **Publish** pick from 15 IR-oriented layouts, preview live, check layout quality, and export executive PDF, report pack (ZIP), PPTX, Word, STIX 2.1, share links, and offline HTML
 
 Works **offline** after the first visit (installable PWA). Inspired by [MetroViz](https://github.com/rstockm/Metroviz), built for security incidents.
 

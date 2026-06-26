@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.0 — 2026-06-26
+
+- **PUBLISH tab** — merges DESIGN preview and OUTPUT exports: layout gallery, live preview, layout quality check, and tiered deliver panel in one place
+- **Audience-first layout gallery** — 15 IR-oriented layouts with filters, case-file variants, and new Host lanes, Evidence table, and Milestone storyboard views
+- **User settings cookie** — theme, timezone, and accent persist when loading samples or opening files
+- **Activity window** — dwell time uses full words (e.g. `23 hours` instead of `23 hrs`)
+- **Smart layout on load** — samples and new timelines without a saved layout pick a suggested gallery layout from event count
+- **Observables → filter** — click an IP, domain, hash, or URL in EDIT to filter matching events
+
+## 1.2.0 — 2026-06-26
+
+- **DESIGN picker** — Format (Timeline / Cards / Executive), Direction (horizontal / vertical), and Layout variant chips replace the old visualization/style dropdowns
+- **Event stack** — new vertical single-column timeline layout for long event lists
+- **Observable extraction** — hosts, users, IPs, and domains surfaced in EDIT sidebar
+- **Auto-detect on paste** — INPUT recognizes common IR formats when pasting source data
+- **Timeline preview** — activity window with full-height lane markers; preview label and layout tweaks
+- **Layout audit** — no longer flags intentional line-clamp/ellipsis in executive summary
+- **Baseline compare** — removed from DESIGN tab; load baseline from EDIT sidebar; overlay badges on previews unchanged
+
 ## 1.1.0 — 2026-06-26
 
 - **EvtxECmd CSV parser** — Eric Zimmerman EZ Tools export

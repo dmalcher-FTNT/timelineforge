@@ -5,6 +5,7 @@ import {
   countByTag,
   filterEvents,
   filtersActive,
+  observableFilterState,
   toggleSingleFilter,
   uniqueFieldValues,
   uniqueTagValues,
@@ -51,5 +52,24 @@ describe('event-filters', () => {
     assert.deepEqual(uniqueTagValues(events), ['critical', 'reviewed']);
     assert.equal(countByTag(events, 'critical'), 2);
     assert.equal(filterEvents(events, { tag: 'reviewed' }).length, 1);
+  });
+
+  it('observableFilterState uses host chip for known hostnames', () => {
+    const hosts = ['HOST-A', 'HOST-B'];
+    assert.deepEqual(observableFilterState('HOST-A', hosts, {}), {
+      search: '', host: 'HOST-A', user: '', category: '', tag: '',
+    });
+    assert.deepEqual(observableFilterState('HOST-A', hosts, { host: 'HOST-A' }), {
+      search: '', host: '', user: '', category: '', tag: '',
+    });
+  });
+
+  it('observableFilterState uses search for other observables', () => {
+    assert.deepEqual(observableFilterState('10.0.0.5', ['HOST-A'], {}), {
+      search: '10.0.0.5', host: '', user: '', category: '', tag: '',
+    });
+    assert.deepEqual(observableFilterState('10.0.0.5', ['HOST-A'], { search: '10.0.0.5' }), {
+      search: '', host: '', user: '', category: '', tag: '',
+    });
   });
 });

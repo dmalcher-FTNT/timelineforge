@@ -18,8 +18,9 @@ describe('index.html structure', () => {
   it('uses class-based tab panels (not x-show on sections)', () => {
     assert.match(html, /tab-panel.*is-active.*tab === 'input'/s);
     assert.match(html, /tab-panel.*is-active.*tab === 'edit'/s);
-    assert.match(html, /tab-panel.*is-active.*tab === 'design'/s);
-    assert.match(html, /tab-panel.*is-active.*tab === 'output'/s);
+    assert.match(html, /tab-panel.*is-active.*tab === 'publish'/s);
+    assert.doesNotMatch(html, /tab-panel.*is-active.*tab === 'design'/s);
+    assert.doesNotMatch(html, /tab-panel.*is-active.*tab === 'output'/s);
     assert.doesNotMatch(html, /<section class="panel" x-show="tab ===/);
   });
 
@@ -37,13 +38,20 @@ describe('index.html structure', () => {
     assert.match(html, /edit-table-controls/);
     assert.match(html, /Source data/);
     assert.match(html, /input-workspace/);
-    assert.match(html, /Appendix page \(PDF\)/);
+    assert.match(html, /publish-deliver/);
+    assert.match(html, /publishSectionsForLayout/);
+    assert.match(html, /primaryPublishActions/);
     assert.match(html, /editViewMode/);
     assert.match(html, /edit-simple-list/);
     assert.match(html, /toggleEditExpanded/);
     assert.match(html, /quality-sidebar/);
     assert.match(html, /design-toolbar/);
-    assert.match(html, /availableVizStyles/);
+    assert.match(html, /design-gallery/);
+    assert.match(html, /designAudiences/);
+    assert.match(html, /filteredDesignLayouts/);
+    assert.match(html, /designLayout/);
+    assert.match(html, /design-gallery-card/);
+    assert.doesNotMatch(html, /outputSectionsForLayout/);
     assert.match(html, /activityPreview\(\)/);
     assert.match(html, /goToAnalysisItem/);
     assert.match(html, /analysisRecommendationsList/);
@@ -59,7 +67,7 @@ describe('index.html structure', () => {
     assert.match(html, /toggleHeaderMenu\('export'\)/);
     assert.match(html, /headerToolsSections/);
     assert.match(html, /headerToolAction/);
-    assert.match(html, /All export formats/);
+    assert.match(html, /Open Publish tab/);
     assert.match(html, /header-btn-share/);
   });
 

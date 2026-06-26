@@ -35,11 +35,11 @@ test('capture README screenshots', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await loadAptSample(page);
 
-  await page.getByRole('button', { name: 'DESIGN', exact: true }).click();
-  await page.locator('.design-toolbar').waitFor({ state: 'visible', timeout: 15000 });
-  await page.locator('.design-toolbar-select').first().selectOption({ label: 'Executive summary' });
+  await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+  await page.locator('.publish-deliver').waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator('.design-gallery-card').filter({ hasText: 'Leadership board' }).click();
   await page.locator('#viz-preview .viz-ciso').waitFor({ state: 'visible', timeout: 15000 });
-  await shot(page.locator('#viz-preview-wrap'), join(outDir, 'design-preview.png'));
+  await shot(page.locator('.publish-main'), join(outDir, 'design-preview.png'));
 
   await page.getByRole('button', { name: 'EDIT', exact: true }).click();
   await page.locator('.edit-workspace').waitFor({ state: 'visible', timeout: 15000 });
@@ -48,11 +48,10 @@ test('capture README screenshots', async ({ page }) => {
   });
   await shot(page.locator('.edit-workspace'), join(outDir, 'edit-workspace.png'));
 
-  await page.getByRole('button', { name: 'OUTPUT', exact: true }).click();
-  await page.locator('.output-grid').waitFor({ state: 'visible', timeout: 15000 });
+  await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+  await page.locator('.publish-deliver').waitFor({ state: 'visible', timeout: 15000 });
   await page.evaluate(() => {
     document.querySelector('.incident-overview')?.setAttribute('style', 'display:none');
   });
-  const outputPanel = page.locator('section.tab-panel.is-active').filter({ has: page.locator('.output-grid') });
-  await shot(outputPanel, join(outDir, 'output-exports.png'));
+  await shot(page.locator('.publish-deliver'), join(outDir, 'output-exports.png'));
 });

@@ -57,4 +57,20 @@ describe('buildActivityPreview', () => {
     assert.equal(interval.isPoint, false);
     assert.equal(point.isPoint, true);
   });
+
+  it('spreads non-overlapping point events across preview lanes', () => {
+    const events = Array.from({ length: 9 }, (_, i) => ({
+      id: `p-${i}`,
+      timestampStart: new Date(Date.UTC(2024, 0, 1 + i)).toISOString(),
+      timestampEnd: null,
+      category: 'initial-access',
+      hostname: 'H1',
+      username: 'u',
+      details: `event ${i}`,
+      phase: 1,
+    }));
+    const preview = buildActivityPreview(events);
+    assert.ok(preview.laneCount > 1);
+    assert.ok(new Set(preview.markers.map((m) => m.row)).size > 1);
+  });
 });

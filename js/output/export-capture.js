@@ -1,4 +1,4 @@
-const HTML_VIZ_SELECTOR = '.viz-ciso, .viz-overview, .viz-phase-columns, .viz-soc, .viz-compare, .viz-retro, .viz-scribing, .viz-activity-strip, .viz-appendix, .viz-mermaid';
+const HTML_VIZ_SELECTOR = '.viz-ciso, .viz-overview, .viz-phase-columns, .viz-soc, .viz-event-stack, .viz-host-lanes, .viz-evidence-table, .viz-storyboard, .viz-compare, .viz-retro, .viz-scribing, .viz-activity-strip, .viz-appendix, .viz-mermaid';
 
 export function isHtmlHeavyViz(root) {
   return Boolean(root?.querySelector(HTML_VIZ_SELECTOR));

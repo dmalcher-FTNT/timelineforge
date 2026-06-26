@@ -2,10 +2,11 @@ import * as d3 from 'd3';
 import { CATEGORIES, formatDateRange } from '../utils.js';
 import { escapeHtml, displayText, displayEventDetails, TEXT_LIMITS, vizTitleHtml } from './viz-helpers.js';
 
-export function renderSocDetails(container, { events, meta }) {
+export function renderSocDetails(container, { events, meta, vizStyle }) {
   const sorted = events;
+  const fullWidth = vizStyle === 'case-full';
   const wrap = document.createElement('div');
-  wrap.className = 'viz-soc';
+  wrap.className = `viz-soc${fullWidth ? ' viz-soc-full' : ''}`;
 
   wrap.innerHTML = `
     <header class="viz-header">
@@ -28,7 +29,7 @@ export function renderSocDetails(container, { events, meta }) {
 
   sorted.forEach((evt, i) => {
     const cat = CATEGORIES[evt.category] || CATEGORIES.reconnaissance;
-    const side = i % 2 === 0 ? 'left' : 'right';
+    const side = fullWidth ? 'full' : (i % 2 === 0 ? 'left' : 'right');
     const card = document.createElement('article');
     card.className = `soc-card soc-${side}`;
     card.dataset.eventId = evt.id;
