@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { loadAptSample, loadSample } from './helpers.js';
+import { loadAptSample, loadSample, waitForExportPreview } from './helpers.js';
 
 test.describe('Export capture', () => {
   test('swimlane chart scroll width exceeds preview viewport', async ({ page }) => {
@@ -41,6 +41,7 @@ test.describe('Export capture', () => {
     await loadSample(page, 'Supply chain');
     await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
     await page.locator('#viz-preview .viz-soc').waitFor({ state: 'visible', timeout: 15000 });
+    await waitForExportPreview(page);
 
     const result = await page.evaluate(async () => {
       const { capturePreviewCanvas, verifyRasterExport } = await import('/js/output/export-capture.js');

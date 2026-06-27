@@ -40,6 +40,17 @@ export async function loadAptSample(page) {
   await loadSample(page, 'APT breach');
 }
 
+/** Wait for preview viz content and fonts before raster export. */
+export async function waitForExportPreview(page) {
+  await page.locator(
+    '#viz-preview .soc-card, #viz-preview .overview-chart, #viz-preview svg, #viz-preview .viz-host-lanes, #viz-preview .viz-phase-columns',
+  ).first().waitFor({ state: 'visible', timeout: 15000 });
+  await page.evaluate(async () => {
+    if (document.fonts?.ready) await document.fonts.ready;
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  });
+}
+
 /**
  * Run export from PUBLISH deliver panel (visual formats).
  * @param {import('@playwright/test').Page} page
@@ -50,6 +61,7 @@ export async function exportFromPublishPanel(page, deliverLabel, confirmLabel) {
   await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
   await page.locator('.publish-export-list').waitFor({ state: 'visible', timeout: 15000 });
   await page.locator('#viz-preview').waitFor({ state: 'visible', timeout: 15000 });
+  await waitForExportPreview(page);
   await page.locator('.publish-export-btn').filter({ hasText: deliverLabel }).click();
   await page.locator('.export-preflight-modal').waitFor({ state: 'visible', timeout: 15000 });
   const confirm = page.getByRole('button', { name: confirmLabel, exact: true });

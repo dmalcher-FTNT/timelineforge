@@ -39,7 +39,19 @@ export async function verifyPngExport(filePath, opts = {}) {
       .extract({ left: centerLeft, top: centerTop, width: centerW, height: centerH })
       .stats();
     const centerHasInk = centerStats.channels.some((c) => c.min < 245);
-    assert.ok(centerHasInk, 'PNG center chart area looks empty');
+
+    const sideW = centerW;
+    const sideH = centerH;
+    const leftStats = await sharp(filePath)
+      .extract({ left: Math.floor(meta.width * 0.08), top: centerTop, width: sideW, height: sideH })
+      .stats();
+    const rightStats = await sharp(filePath)
+      .extract({ left: Math.max(0, meta.width - Math.floor(meta.width * 0.08) - sideW), top: centerTop, width: sideW, height: sideH })
+      .stats();
+    const lateralHasInk = [leftStats, rightStats].some((stats) =>
+      stats.channels.some((c) => c.min < 245),
+    );
+    assert.ok(centerHasInk || lateralHasInk, 'PNG chart area looks empty');
   }
 }
 

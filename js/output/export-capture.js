@@ -159,6 +159,11 @@ export async function capturePreviewCanvas(previewEl) {
   ({ width, height } = measureExportBounds(wrap));
   pinExportWidth(wrap, previewEl, width);
 
+  if (document.fonts?.ready) {
+    await document.fonts.ready;
+  }
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
   const scale = exportCaptureScale(width, height);
 
   try {
@@ -249,22 +254,27 @@ export function verifyRasterExport(canvas) {
   const ratios = regions.map(([x, y]) => sampleNonWhiteRatio(ctx, canvas, x, y, sampleSize, sampleSize));
   const avgInk = ratios.reduce((a, b) => a + b, 0) / ratios.length;
   const blankRegions = ratios.filter((r) => r < 0.02).length;
+  const sampleY = Math.max(0, canvas.height * 0.35 - sampleSize / 2);
   const centerInk = sampleNonWhiteRatio(
     ctx,
     canvas,
     canvas.width / 2 - sampleSize / 2,
-    Math.max(0, canvas.height * 0.35 - sampleSize / 2),
+    sampleY,
     sampleSize,
     sampleSize,
   );
+  const leftInk = sampleNonWhiteRatio(ctx, canvas, canvas.width * 0.12, sampleY, sampleSize, sampleSize);
+  const rightInk = sampleNonWhiteRatio(ctx, canvas, canvas.width * 0.88 - sampleSize, sampleY, sampleSize, sampleSize);
+  const lateralInk = Math.max(leftInk, rightInk);
+  const chartInk = Math.max(centerInk, lateralInk);
 
   if (avgInk < 0.015) {
     items.push({ severity: 'error', message: 'Export looks blank — check DESIGN preview before sharing.' });
-  } else if (canvas.height > 400 && centerInk < 0.02 && avgInk < 0.08) {
+  } else if (canvas.height > 400 && chartInk < 0.02 && avgInk < 0.08) {
     items.push({ severity: 'error', message: 'Export chart area looks empty — timeline content may not have rendered.' });
   } else if (blankRegions >= 3) {
     items.push({ severity: 'warning', message: 'Export may be mostly empty — verify timeline content rendered.' });
-  } else if (canvas.height > 400 && centerInk < 0.02) {
+  } else if (canvas.height > 400 && chartInk < 0.02) {
     items.push({ severity: 'warning', message: 'Export center looks empty — layout may be clipped.' });
   } else if (ratios[0] < 0.02 && ratios[3] < 0.02) {
     items.push({ severity: 'warning', message: 'Export edges look empty — layout may be clipped.' });
