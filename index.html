@@ -245,7 +245,7 @@
             class="incident-title-input"
             x-model="timeline.meta.title"
             @input="onIncidentMetaChange()"
-            placeholder="Export title"
+            placeholder="Incident title"
             maxlength="120"
           >
           <span class="incident-badge" x-show="filterIsActive() && timeline.events.length">Filtered</span>
@@ -946,6 +946,15 @@
     <!-- PUBLISH -->
     <section class="panel tab-panel publish-panel" :class="{ 'is-active': tab === 'publish' }">
       <div class="publish-workspace">
+        <div class="publish-empty-state" x-show="!timeline.events.length" x-cloak>
+          <h2 class="publish-empty-title">Nothing to publish yet</h2>
+          <p class="publish-empty-lead">Load a sample timeline or import your data in INPUT, then pick a layout and export.</p>
+          <div class="publish-empty-actions">
+            <button type="button" class="btn btn-primary" @click="welcomeTrySample()">Load sample</button>
+            <button type="button" class="btn" @click="setTab('input')">Go to INPUT</button>
+          </div>
+        </div>
+
         <header class="design-toolbar publish-layout-bar" x-show="timeline.events.length">
           <div class="design-gallery-panel">
             <div class="design-gallery-header">
@@ -1018,20 +1027,19 @@
             <h2 class="publish-deliver-heading">Deliver</h2>
             <p class="publish-deliver-lead">Export the layout shown in the preview.</p>
 
-            <div class="publish-primary-actions" x-show="primaryPublishActions().length">
-              <template x-for="item in primaryPublishActions()" :key="'primary-' + item.type">
-                <button type="button" class="btn btn-primary publish-primary-btn" @click="runPublishExport(item.type)">
-                  <span x-text="item.icon"></span>
-                  <span x-text="item.label"></span>
-                </button>
-              </template>
-            </div>
-
-            <div class="publish-secondary-actions" x-show="secondaryPublishActions().length">
-              <template x-for="item in secondaryPublishActions()" :key="'secondary-' + item.type">
-                <button type="button" class="btn btn-sm btn-ghost publish-secondary-btn" @click="runPublishExport(item.type)">
-                  <span x-text="item.icon"></span>
-                  <span x-text="item.label"></span>
+            <div class="publish-export-list">
+              <template x-for="item in publishExportActions()" :key="item.type">
+                <button
+                  type="button"
+                  class="btn publish-export-btn"
+                  :class="{ 'is-recommended': item.recommended }"
+                  @click="runPublishExport(item.type)"
+                >
+                  <span class="publish-export-icon" x-text="item.icon" aria-hidden="true"></span>
+                  <span class="publish-export-label">
+                    <strong x-text="item.label"></strong>
+                    <span class="publish-export-badge" x-show="item.recommended">Recommended</span>
+                  </span>
                 </button>
               </template>
             </div>
@@ -1101,6 +1109,7 @@
       </div>
       <div class="modal-actions">
         <button type="button" class="btn" @click="closeShareModal()">Close</button>
+        <button type="button" class="btn btn-ghost" x-show="shareLinkResult && !shareLinkResult.tooLarge" @click="copyShareLink()">Copy link</button>
         <button type="button" class="btn btn-ghost" x-show="shareLinkResult?.tooLarge" @click="copyLocalShareBookmark()">Local bookmark</button>
         <button type="button" class="btn btn-primary" @click="downloadShareFallback()">Download timeline file</button>
       </div>
@@ -1157,6 +1166,7 @@
         </span>
       </div>
       <img class="export-preview-thumb" x-show="exportPreviewThumb" :src="exportPreviewThumb" alt="Export preview thumbnail">
+      <pre class="export-preview-text" x-show="exportPreviewText && !exportPreviewThumb" x-text="exportPreviewText"></pre>
       <div class="export-preflight-issues" x-show="exportPreflight?.items?.length">
         <template x-for="item in exportPreflight?.items || []" :key="item.message">
           <div class="issue" :class="item.severity" x-text="item.message"></div>

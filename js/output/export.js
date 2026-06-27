@@ -1,5 +1,6 @@
 import { isHtmlHeavyViz, capturePreviewCanvas, verifyRasterExport, prepareSvgExportCapture } from './export-capture.js';
 import { exportBasename, exportTitle } from './export-names.js';
+import { choosePdfOrientation, fitToBox, planCanvasPdfPages } from './export-fit.js';
 
 export async function exportJSON(timeline) {
   const blob = new Blob([JSON.stringify(timeline, null, 2)], { type: 'application/json' });
@@ -68,6 +69,7 @@ export async function exportPNG(element, filename) {
 
 export async function exportPDF(element, filename, title) {
   const { pdf, verify } = await buildPDFDocument(element, title);
+  if (!verify.ok) throw new Error(verify.items[0]?.message || 'Export verification failed');
   pdf.save(`${filename}.pdf`);
   return verify;
 }
@@ -85,49 +87,65 @@ async function buildPDFDocument(element, title) {
   ]);
   const svg2pdf = svg2pdfModule.default || svg2pdfModule.svg2pdf;
 
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const heading = (title || '').trim();
+  const margin = 36;
+  const headingSpace = heading ? 44 : margin;
+
+  if (isHtmlHeavyViz(element) || !element.querySelector('svg')) {
+    const canvas = await capturePreviewCanvas(element);
+    const verify = verifyRasterExport(canvas);
+    const orientation = choosePdfOrientation(canvas.width, canvas.height);
+    const pdf = new jsPDF({ orientation, unit: 'pt', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const contentTop = headingSpace;
+    const availW = pageW - margin * 2;
+    const availH = pageH - contentTop - margin;
+
+    if (heading) {
+      pdf.setFontSize(14);
+      pdf.text(heading, margin, 28);
+    }
+
+    const widthFit = fitToBox(canvas.width, canvas.height, availW, availH);
+    const drawW = widthFit.width;
+    const drawH = widthFit.height;
+    const pages = planCanvasPdfPages(canvas.height, drawW, drawH, availH);
+
+    pages.forEach((page, pageIndex) => {
+      if (pageIndex > 0) pdf.addPage();
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = page.slicePx;
+      const sctx = sliceCanvas.getContext('2d');
+      sctx.drawImage(canvas, 0, page.srcY, canvas.width, page.slicePx, 0, 0, canvas.width, page.slicePx);
+      const sliceImg = sliceCanvas.toDataURL('image/jpeg', 0.92);
+      const sliceDrawH = page.drawH;
+      pdf.addImage(sliceImg, 'JPEG', margin, pageIndex === 0 ? contentTop : margin, drawW, sliceDrawH);
+    });
+
+    return { pdf, verify };
+  }
+
+  const svg = element.querySelector('svg');
+  const vb = svg.viewBox?.baseVal;
+  const svgW = vb?.width || svg.getBoundingClientRect().width || 1100;
+  const svgH = vb?.height || svg.getBoundingClientRect().height || 800;
+  const orientation = choosePdfOrientation(svgW, svgH);
+  const pdf = new jsPDF({ orientation, unit: 'pt', format: 'a4' });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  const margin = 36;
-  const heading = (title || '').trim();
-  const contentTop = heading ? 44 : margin;
+  const contentTop = headingSpace;
+  const availW = pageW - margin * 2;
+  const availH = pageH - contentTop - margin;
 
   if (heading) {
     pdf.setFontSize(14);
     pdf.text(heading, margin, 28);
   }
 
-  if (isHtmlHeavyViz(element) || !element.querySelector('svg')) {
-    const canvas = await capturePreviewCanvas(element);
-    const verify = verifyRasterExport(canvas);
-    const ratio = canvas.width / canvas.height;
-    const contentW = pageW - margin * 2;
-    const contentH = contentW / ratio;
-    const maxH = pageH - contentTop - margin;
-    let y = contentTop;
-    let sliceH = Math.min(contentH, maxH);
-    let srcY = 0;
-    const sliceRatio = canvas.height / contentH;
-
-    while (srcY < canvas.height) {
-      if (y > contentTop) pdf.addPage();
-      const sliceCanvas = document.createElement('canvas');
-      const slicePx = Math.min(canvas.height - srcY, Math.round(sliceH * sliceRatio));
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = slicePx;
-      const sctx = sliceCanvas.getContext('2d');
-      sctx.drawImage(canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
-      const sliceImg = sliceCanvas.toDataURL('image/jpeg', 0.92);
-      const drawH = (slicePx / canvas.width) * contentW;
-      pdf.addImage(sliceImg, 'JPEG', margin, y, contentW, drawH);
-      srcY += slicePx;
-      y = margin;
-    }
-    return { pdf, verify };
-  }
-
-  const svg = element.querySelector('svg');
-  await svg2pdf(svg, pdf, { x: margin, y: contentTop, width: pageW - margin * 2 });
+  const fitted = fitToBox(svgW, svgH, availW, availH);
+  await svg2pdf(svg, pdf, { x: margin, y: contentTop, width: fitted.width, height: fitted.height });
   return { pdf, verify: { ok: true, items: [] } };
 }
 

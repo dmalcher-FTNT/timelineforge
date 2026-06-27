@@ -53,10 +53,11 @@ import { validateExport } from './output/export-validate.js';
 import { createExportThumbnail } from './output/export-capture.js';
 import { exportBasename, exportTitle } from './output/export-names.js';
 import {
-  canSkipVisualExportPreflight,
+  buildExportPreviewText,
   exportConfirmLabel,
   exportPreflightStatus,
   exportPreflightSummary,
+  VISUAL_PREVIEW_TYPES,
 } from './output/export-preflight.js';
 import { downloadSharePack } from './output/share-pack.js';
 import { findPreviewEventTarget, stepEventIndex } from './edit/event-focus.js';
@@ -156,6 +157,7 @@ export function createApp() {
     showExportPreflight: false,
     exportPreflight: null,
     exportPreviewThumb: null,
+    exportPreviewText: null,
     pendingExportType: null,
     pdfMeta: null,
     pdfUploadBuffer: null,
@@ -171,6 +173,8 @@ export function createApp() {
     ],
     draftSavedAt: null,
     currentFileName: null,
+    /** Bumped when undo/redo stack changes so Alpine re-evaluates canUndo/canRedo. */
+    historyTick: 0,
 
     editViewMode: 'simple',
     editExpandedId: null,
@@ -244,8 +248,9 @@ export function createApp() {
         items: [
           { type: 'png', label: 'PNG image', icon: '🖼' },
           { type: 'pdf', label: 'PDF document', icon: '📄' },
+          { type: 'pptx', label: 'PowerPoint', icon: '📊' },
           { type: 'svg', label: 'SVG vector', icon: '◇' },
-          { type: 'print', label: 'Print', icon: '🖨' },
+          { type: 'print', label: 'Print…', icon: '🖨' },
         ],
       },
     ],
@@ -417,17 +422,24 @@ export function createApp() {
       ];
     },
 
+    publishExportActions() {
+      const hints = new Set(layoutExportHints(this.designLayout));
+      const seen = new Set();
+      const items = [];
+      for (const item of this.publishDeliverSections.flatMap((section) => section.items)) {
+        if (seen.has(item.type)) continue;
+        seen.add(item.type);
+        items.push({ ...item, recommended: hints.has(item.type) });
+      }
+      return items;
+    },
+
     primaryPublishActions() {
-      const hints = layoutExportHints(this.designLayout);
-      const byType = new Map(this.allPublishExportItems().map((item) => [item.type, item]));
-      return hints.map((type) => byType.get(type)).filter(Boolean).slice(0, 3);
+      return this.publishExportActions().filter((item) => item.recommended);
     },
 
     secondaryPublishActions() {
-      const primary = new Set(this.primaryPublishActions().map((item) => item.type));
-      return this.publishDeliverSections
-        .flatMap((section) => section.items)
-        .filter((item) => !primary.has(item.type));
+      return this.publishExportActions().filter((item) => !item.recommended);
     },
 
     headerExportMenuSections() {
@@ -450,7 +462,7 @@ export function createApp() {
     },
 
     runPublishExport(type) {
-      if (type === 'share-file') return this.downloadShareFile();
+      if (type === 'share-file') return this.exportAs('share-file');
       return this.exportAs(type);
     },
 
@@ -516,7 +528,7 @@ export function createApp() {
           this.applyTheme();
           this.notifyTimelineChanged({ skipSourceSync: true });
           this.tab = 'publish';
-          appHistory = createHistory(this.timeline);
+          this.resetAppHistory();
           this.scheduleAutoAnalyze();
           return;
         }
@@ -538,7 +550,7 @@ export function createApp() {
       } else if (!hasWelcomeBeenSeen()) {
         this.showWelcomeModal = true;
       }
-      appHistory = createHistory(this.timeline);
+      this.resetAppHistory();
       if (this.timeline.events?.length) this.scheduleAutoAnalyze();
     },
 
@@ -739,23 +751,51 @@ export function createApp() {
       return ['import', 'report'].includes(this.inputMode) && trimmed.startsWith('{');
     },
 
+    bumpHistoryUi() {
+      this.historyTick += 1;
+    },
+
+    resetAppHistory() {
+      appHistory = createHistory(this.timeline);
+      this.bumpHistoryUi();
+    },
+
+    pushHistoryNow() {
+      if (!appHistory) return;
+      clearTimeout(historyTimer);
+      historyTimer = null;
+      const idx = appHistory.index;
+      const len = appHistory.stack.length;
+      pushHistoryState(appHistory, this.timeline);
+      if (appHistory.index !== idx || appHistory.stack.length !== len) {
+        this.bumpHistoryUi();
+      }
+    },
+
     scheduleHistoryPush() {
       if (!appHistory) return;
       clearTimeout(historyTimer);
-      historyTimer = setTimeout(() => {
-        pushHistoryState(appHistory, this.timeline);
-      }, 400);
+      historyTimer = setTimeout(() => this.pushHistoryNow(), 400);
+    },
+
+    flushPendingTimelineUpdates() {
+      clearTimeout(changeTimer);
+      changeTimer = null;
+      if (appHistory) this.pushHistoryNow();
     },
 
     canUndo() {
+      void this.historyTick;
       return appHistory ? historyCanUndo(appHistory) : false;
     },
 
     canRedo() {
+      void this.historyTick;
       return appHistory ? historyCanRedo(appHistory) : false;
     },
 
     undo() {
+      this.flushPendingTimelineUpdates();
       if (!this.canUndo()) return;
       const restored = undoHistory(appHistory);
       if (restored) {
@@ -765,10 +805,12 @@ export function createApp() {
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
         this.statusMessage = 'Undone.';
       }
+      this.bumpHistoryUi();
       this.scheduleStatusClear(1500);
     },
 
     redo() {
+      this.flushPendingTimelineUpdates();
       if (!this.canRedo()) return;
       const restored = redoHistory(appHistory);
       if (restored) {
@@ -778,6 +820,7 @@ export function createApp() {
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
         this.statusMessage = 'Redone.';
       }
+      this.bumpHistoryUi();
       this.scheduleStatusClear(1500);
     },
 
@@ -1117,7 +1160,7 @@ export function createApp() {
         this.inputImportSuccess = null;
         this.applyStoredUserSettings();
         this.applyTheme();
-        appHistory = createHistory(this.timeline);
+        this.resetAppHistory();
         this.afterTimelineLoad();
         this.applySuggestedDesignLayout({ force: true });
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
@@ -1562,7 +1605,7 @@ export function createApp() {
       this.busy = false;
       this.progress = 0;
 
-      appHistory = createHistory(this.timeline);
+      this.resetAppHistory();
 
       saveDraft(this.timeline, null);
       this.draftSavedAt = Date.now();
@@ -1614,6 +1657,18 @@ export function createApp() {
       this.showShareModal = false;
       this.shareLinkResult = null;
       this.shareFallbackTimeline = null;
+    },
+
+    async copyShareLink() {
+      const url = this.shareLinkResult?.url;
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+        this.statusMessage = 'Link copied to clipboard.';
+      } catch {
+        this.statusMessage = 'Could not copy — select the link and copy manually.';
+      }
+      this.scheduleStatusClear(2500);
     },
 
     async downloadShareFallback() {
@@ -1832,7 +1887,7 @@ export function createApp() {
         this.applyStoredUserSettings();
         if (this.refreshEventDetails()) this.scheduleSave();
         this.applyTheme();
-        appHistory = createHistory(this.timeline);
+        this.resetAppHistory();
         this.afterTimelineLoad();
         this.applySuggestedDesignLayout();
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
@@ -2187,59 +2242,43 @@ export function createApp() {
       await this.exportAs(type);
     },
 
-    async prepareVisualExport(type) {
-      if (this.tab !== 'publish') {
-        this.tab = 'publish';
-        await this.$nextTick();
-      }
-      this.renderPreview();
-      await delay(350);
-      const previewEl = document.getElementById('viz-preview');
+    async prepareExportPreflight(type) {
       const exportTimeline = this.exportTimeline();
+      const wantsVisual = VISUAL_PREVIEW_TYPES.has(type);
+
+      if (wantsVisual) {
+        if (this.tab !== 'publish') {
+          this.tab = 'publish';
+          await this.$nextTick();
+        }
+        this.renderPreview();
+        await delay(350);
+      }
+
+      const previewEl = wantsVisual ? document.getElementById('viz-preview') : null;
       const result = validateExport(exportTimeline, this.analysis, previewEl);
-      if (['png', 'pdf', 'html'].includes(type)) {
+
+      if (wantsVisual && previewEl) {
         this.exportPreviewThumb = await createExportThumbnail(previewEl);
+        this.exportPreviewText = null;
       } else {
         this.exportPreviewThumb = null;
+        this.exportPreviewText = buildExportPreviewText(type, exportTimeline);
       }
+
       return result;
     },
 
     async exportAs(type) {
-      const appendixTypes = ['appendix-pdf', 'appendix-png', 'report-pack', 'appendix-pptx', 'executive-pdf'];
-      if (appendixTypes.includes(type)) {
-        const exportTimeline = this.exportTimeline();
-        const result = validateExport(exportTimeline, this.analysis);
-        if (!result.ok) {
-          this.exportPreflight = result;
-          this.pendingExportType = type;
-          this.showExportPreflight = true;
-          return;
-        }
-        await this.runExport(type);
+      if (type === 'link') {
+        await this.openShareLink();
         return;
       }
-      const visualTypes = ['png', 'pdf', 'pptx', 'svg', 'html'];
-      if (visualTypes.includes(type)) {
-        const result = await this.prepareVisualExport(type);
-        if (canSkipVisualExportPreflight(type, result)) {
-          await this.runExport(type);
-          return;
-        }
-        this.exportPreflight = result;
-        this.pendingExportType = type;
-        this.showExportPreflight = true;
-        return;
-      }
-      const exportTimeline = this.exportTimeline();
-      const result = validateExport(exportTimeline, this.analysis);
-      if (!result.ok) {
-        this.exportPreflight = result;
-        this.pendingExportType = type;
-        this.showExportPreflight = true;
-        return;
-      }
-      await this.runExport(type);
+
+      const result = await this.prepareExportPreflight(type);
+      this.exportPreflight = result;
+      this.pendingExportType = type;
+      this.showExportPreflight = true;
     },
 
     async loadCompareTimeline(event) {
@@ -2274,13 +2313,20 @@ export function createApp() {
       this.showExportPreflight = false;
       this.exportPreflight = null;
       this.pendingExportType = null;
-      if (type) await this.runExport(type);
+      if (!type) return;
+      try {
+        await this.runExport(type);
+      } catch (e) {
+        this.statusMessage = e?.message || 'Export failed.';
+        this.scheduleStatusClear(5000);
+      }
     },
 
     cancelExport() {
       this.showExportPreflight = false;
       this.exportPreflight = null;
       this.exportPreviewThumb = null;
+      this.exportPreviewText = null;
       this.pendingExportType = null;
     },
 
@@ -2303,7 +2349,11 @@ export function createApp() {
     },
 
     exportPreflightIsVisual() {
-      return ['png', 'pdf', 'svg', 'pptx', 'html'].includes(this.pendingExportType);
+      return VISUAL_PREVIEW_TYPES.has(this.pendingExportType);
+    },
+
+    exportPreflightHasPreview() {
+      return Boolean(this.exportPreviewThumb || this.exportPreviewText);
     },
 
     async runExport(type) {
@@ -2384,12 +2434,16 @@ export function createApp() {
         const { exportPrint } = await import('./output/export-svg.js');
         exportPrint();
       }
+      else if (type === 'share-file') {
+        await this.downloadShareFile();
+      }
       else if (type === 'html') exportStandaloneHTML(exportTimeline, el?.innerHTML || '');
       else if (type === 'link') {
         await this.openShareLink();
         return;
       }
       this.exportPreviewThumb = null;
+      this.exportPreviewText = null;
     },
 
     reportExportVerify(verify) {

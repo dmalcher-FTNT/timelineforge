@@ -13,13 +13,10 @@ describe('export preflight helpers', () => {
     assert.equal(exportConfirmLabel('pdf'), 'Export PDF');
   });
 
-  it('skips modal only for green visual exports', () => {
+  it('always requires preflight modal (no skip)', () => {
     const ready = { ok: true, layoutScore: 92, layoutOverflow: 0 };
-    assert.equal(canSkipVisualExportPreflight('png', ready), true);
+    assert.equal(canSkipVisualExportPreflight('png', ready), false);
     assert.equal(canSkipVisualExportPreflight('pptx', ready), false);
-    assert.equal(canSkipVisualExportPreflight('png', { ...ready, layoutScore: 80 }), false);
-    assert.equal(canSkipVisualExportPreflight('png', { ...ready, layoutOverflow: 2 }), false);
-    assert.equal(canSkipVisualExportPreflight('png', { ...ready, ok: false }), false);
   });
 
   it('summarizes blocked, warning, and ready states', () => {

@@ -24,6 +24,20 @@ test.describe('EDIT usability fixes', () => {
     await expect(page.locator('.edit-subtitle')).toContainText('filtered');
   });
 
+  test('undo reverts edit immediately', async ({ page }) => {
+    await loadAptSample(page);
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    const firstRow = page.locator('.edit-main [data-event-id]').first();
+    await firstRow.locator('.edit-simple-row').click();
+    const hostInput = firstRow.locator('.edit-event-field').filter({ hasText: 'Host' }).locator('input');
+    const original = await hostInput.inputValue();
+    await hostInput.fill(`${original}-undo-test`);
+    await hostInput.dispatchEvent('input');
+    await expect(page.getByRole('button', { name: '↶' })).toBeEnabled({ timeout: 3000 });
+    await page.getByRole('button', { name: '↶' }).click();
+    await expect(hostInput).toHaveValue(original, { timeout: 3000 });
+  });
+
   test('status toast stays visible and can be dismissed', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.removeItem('timelineforge-welcome-v1');

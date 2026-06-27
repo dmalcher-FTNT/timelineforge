@@ -5,6 +5,7 @@ import { CATEGORIES, sortEvents, timelineSpanMonths, uniqueHosts, formatDate } f
 import { capturePreviewCanvas } from './export-capture.js';
 import { captureAppendixImage } from './export-appendix.js';
 import { exportBasename, exportTitle } from './export-names.js';
+import { fitToBox } from './export-fit.js';
 
 /** Add a full-width appendix timeline slide to an existing deck. */
 export async function addAppendixSlide(pptx, timeline, accentHex) {
@@ -124,7 +125,12 @@ export async function exportPPTX(timeline, previewElement) {
       const imgData = canvas.toDataURL('image/png');
       const vizSlide = pptx.addSlide();
       vizSlide.addText('Visualization', { x: 0.5, y: 0.2, w: 9, fontSize: 18, bold: true, color: accent });
-      vizSlide.addImage({ data: imgData, x: 0.5, y: 0.65, w: 9, h: 4.6 });
+      const boxW = 9;
+      const boxH = 4.75;
+      const fitted = fitToBox(canvas.width, canvas.height, boxW, boxH);
+      const x = 0.5 + (boxW - fitted.width) / 2;
+      const y = 0.65 + (boxH - fitted.height) / 2;
+      vizSlide.addImage({ data: imgData, x, y, w: fitted.width, h: fitted.height });
     } catch {
       /* skip image slide if capture fails */
     }

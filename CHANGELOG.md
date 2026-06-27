@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.4 — 2026-06-27
+
+- **Export reliability** — fixed blank PDF/PNG on small templates (Supply chain, case-file layouts); capture no longer forces preview height during html2canvas clone; PDF export fails fast when content verify fails
+- **Fit-to-page exports** — PDF/PPTX scale to canvas with landscape/portrait pick; full-width capture for scrollable swimlanes
+- **Unified PUBLISH exports** — consistent export list with preview-before-download for every format (thumbnail or text summary)
+- **Export regression tests** — e2e verifies PNG/PDF/Word from Supply chain, Insider threat, and Cloud breach samples (structure + non-blank chart content)
+- **Undo fix** — edit changes register for undo/redo immediately; toolbar buttons update when history is available
+- **Share modal Copy link** — explicit copy button when the timeline fits in a shareable URL
+- **Incident title placeholder** — header title field placeholder renamed from “Export title”
+- **PUBLISH empty state** — when no events are loaded, shows Load sample and Go to INPUT CTAs
+- **README** — expanded feature list and refreshed screenshots
+
 ## 1.3.2 — 2026-06-26
 
 - **First-run welcome** — choose blank timeline or APT breach sample on first visit (no auto-load surprise)

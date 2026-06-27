@@ -51,7 +51,7 @@ test.describe('PUBLISH preview visual QA', () => {
   test('deliver panel shows this view exports', async ({ page }) => {
     await loadExampleOnPublish(page);
     await expect(page.locator('.publish-deliver-lead')).toBeVisible();
-    await expect(page.locator('.publish-primary-actions .publish-primary-btn').first()).toBeVisible();
+    await expect(page.locator('.publish-export-list .publish-export-btn').first()).toBeVisible();
   });
 
   test('case file spine renders alternating cards', async ({ page }) => {

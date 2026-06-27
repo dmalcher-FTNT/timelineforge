@@ -12,11 +12,16 @@ mkdirSync(outDir, { recursive: true });
 const SCREENSHOT_CSS = `
   .status-bar { display: none !important; }
   .demo-banner { display: none !important; }
+  .app-toast { display: none !important; }
+  .modal-backdrop { display: none !important; }
 `;
 
 async function loadAptSample(page) {
   await loadAptSampleHelper(page);
   await page.addStyleTag({ content: SCREENSHOT_CSS });
+  await page.evaluate(() => {
+    document.querySelectorAll('.modal-backdrop').forEach((el) => el.classList.remove('is-open'));
+  });
 }
 
 async function shot(locator, path) {

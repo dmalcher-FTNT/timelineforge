@@ -144,6 +144,23 @@ test.describe('TimelineForge UI', () => {
     await expect(page.locator('.edit-main [data-event-id]')).toHaveCount(total);
   });
 
+  test('publish empty state guides blank workspace', async ({ page }) => {
+    await skipWelcomeAndClearDraft(page);
+    await page.goto('/');
+    await page.locator('.brand-title').waitFor({ state: 'visible', timeout: 15000 });
+    await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+    await expect(page.locator('.publish-empty-state')).toBeVisible();
+    await expect(page.locator('.publish-empty-state')).toContainText('Load sample');
+    await page.locator('.publish-empty-state').getByRole('button', { name: 'Go to INPUT' }).click();
+    await expect(page.locator('.tab-panel.is-active')).toContainText('Source data');
+  });
+
+  test('incident title field uses incident placeholder', async ({ page }) => {
+    await skipWelcomeAndClearDraft(page);
+    await page.goto('/');
+    await expect(page.locator('.incident-title-input')).toHaveAttribute('placeholder', 'Incident title');
+  });
+
   test('import timeline button parses manual input', async ({ page }) => {
     await skipWelcomeAndClearDraft(page);
     await page.goto('/');

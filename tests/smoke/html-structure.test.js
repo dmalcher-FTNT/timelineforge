@@ -39,9 +39,9 @@ describe('index.html structure', () => {
     assert.match(html, /Source data/);
     assert.match(html, /input-workspace/);
     assert.match(html, /publish-deliver/);
-    assert.match(html, /secondaryPublishActions/);
+    assert.match(html, /publish-export-list/);
     assert.match(html, /openHeaderExportMenu/);
-    assert.match(html, /primaryPublishActions/);
+    assert.match(html, /publishExportActions/);
     assert.match(html, /editViewMode/);
     assert.match(html, /edit-simple-list/);
     assert.match(html, /toggleEditExpanded/);
