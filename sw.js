@@ -1,4 +1,4 @@
-const CACHE = 'timelineforge-offline-v15';
+const CACHE = 'timelineforge-offline-v16';
 
 const SHELL = [
   './',
@@ -45,7 +45,7 @@ function isAppShellRequest(url) {
   if (url.origin !== self.location.origin) return false;
   const path = url.pathname;
   if (path.endsWith('/index.html') || path.endsWith('/sw.js')) return true;
-  if (path.includes('/js/') && !path.includes('/vendor/')) return true;
+  if (path.includes('/js/') && !path.includes('/vendor/') && !path.includes('/lib/')) return true;
   return false;
 }
 

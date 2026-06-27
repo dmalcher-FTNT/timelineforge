@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.9 — 2026-06-27
+
+- **GitHub Pages fix** — deploy ships browser dependencies as `/lib/` (GitHub blocks `/vendor/`); share links and the app boot on the live demo again
+- **Compressed hash links** — deflate v2 (`#data=2.…`) with legacy LZ-String v1 decode; no server sessions
+
 ## 1.3.8 — 2026-06-27
 
 - **Compressed hash links (v2)** — share URLs use deflate compression (~half the size of legacy LZ-String); old `#data=` links still open

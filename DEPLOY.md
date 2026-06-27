@@ -61,7 +61,7 @@ git commit -m "TimelineForge 1.0.0 — initial release"
 | `data/`, `assets/`, tests | `vendor/` (run `npm run vendor`) |
 | `package.json`, `package-lock.json` | `dist/`, `release/` |
 
-**`vendor/` is not committed.** After clone, CI and local dev run `npm run vendor` to download/bundle browser libraries (Alpine, D3, PDF.js, Tesseract, etc.) into `vendor/`. The running app and offline PWA still need that folder — it is just a build artifact, like `dist/`.
+**`vendor/` is not committed.** After clone, CI and local dev run `npm run vendor` to download/bundle browser libraries into `vendor/`. The deploy build copies them to **`lib/`** in `dist/` because GitHub Pages blocks the `/vendor` URL path.
 
 ---
 
