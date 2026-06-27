@@ -6,7 +6,7 @@ const SHARE_INSTRUCTIONS = `TimelineForge — sharing this timeline
 2. They open TimelineForge and use File → Open (or ⌘O / Ctrl+O).
 3. Select this JSON file to load the full timeline.
 
-Links with #data=… embed the timeline in the URL and work on any device with TimelineForge.
+Portable links use the same host you opened TimelineForge on (GitHub Pages, localhost, or your server) with the timeline in the URL hash (#data=…).
 
 For large timelines, download the JSON file — recipients open it via File → Open (⌘O).`;
 
@@ -29,12 +29,15 @@ export async function downloadSharePack(timeline) {
   }
 }
 
-export function shareModeHint(mode) {
+export function shareModeHint(mode, host = '') {
   if (mode === 'stored') {
-    return 'Local bookmark — opens only in this browser. Use the portable link or timeline file to share with others.';
+    return 'Same-browser bookmark — opens only in this browser. Use a portable link or timeline file to share with others.';
   }
   if (mode === 'inline') {
-    return 'Portable link — paste into any browser running TimelineForge. For email attachments, use Download timeline file.';
+    const hostNote = host
+      ? ` Built from ${host} — recipients open TimelineForge at the same address (demo site, localhost, or your host).`
+      : ' Uses the current site address — works on GitHub Pages, localhost, or any host.';
+    return `Portable link — timeline embedded in the URL hash.${hostNote} For email attachments, use Download timeline file.`;
   }
   return '';
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.7 — 2026-06-27
+
+- **Share links** — built from the current site host (`resolveShareBaseUrl`) so GitHub Pages, localhost, and custom hosts work without hardcoded URLs; strips duplicate `sourceText` so APT-sized timelines fit portable links
+- **Help & shortcuts** — expanded modal with workflow, sharing, and menu guide; share hints show the active host
+- **README refresh** — hero main-overview screenshot, Collect import shot, badges, TOC, privacy callout, condensed highlights; screenshot map in `docs/screenshots/README.md`
+- **Dark/light mode fix** — restored `body.theme-dark` CSS block (from 1.3.6 follow-up)
+
 ## 1.3.6 — 2026-06-27
 
 - **Boot fix** — service worker now network-first for app HTML/JS so cached stale `app.js` cannot mismatch new `index.html`; bootstrap patches missing `incidentOverviewCollapsed` on older caches

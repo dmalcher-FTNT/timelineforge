@@ -102,8 +102,8 @@ Future pushes to `main` automatically redeploy.
 
 - [ ] Page loads without “failed to start”
 - [ ] **File → Samples → APT breach** loads events
-- [ ] **PUBLISH** preview renders (layout gallery + live preview)
-- [ ] **PUBLISH → Report pack** triggers a download
+- [ ] **Deliver** preview renders (layout gallery + live preview)
+- [ ] **Deliver → Report pack** triggers a download
 - [ ] Hard refresh after deploy if you see an old version (service worker cache)
 
 ---

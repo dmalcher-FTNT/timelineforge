@@ -41,6 +41,15 @@ describe('CSS pseudo-element anchors', () => {
     assert.match(mainCss, /\.header-menu-item\s*\{[^}]*color:\s*var\(--menu-text\)/);
   });
 
+  it('body.theme-dark defines dark theme tokens', () => {
+    assert.match(
+      mainCss,
+      /body\.theme-dark\s*\{[^}]*color-scheme:\s*dark[^}]*--bg:\s*#0D0D0D/s,
+      'Dark theme CSS variables must live inside body.theme-dark { }',
+    );
+    assert.match(mainCss, /:root\s*\{[^}]*--chrome-tab-text:/s);
+  });
+
   it('.overview-lane-track is positioned for lane axis pseudo-elements', () => {
     assert.match(
       mainCss,

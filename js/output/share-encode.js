@@ -1,22 +1,30 @@
 import LZString from '../../vendor/lz-string.mjs';
 import { idbSupported, loadShareTimeline, storeShareTimeline } from '../share-store.js';
-import { assessShareLink, MAX_SHARE_URL_LENGTH, shareIdFromHash } from './share-link.js';
+import {
+  assessShareLink,
+  MAX_SHARE_URL_LENGTH,
+  shareIdFromHash,
+  prepareTimelineForShare,
+  resolveShareBaseUrl,
+} from './share-link.js';
 
 const { compressToEncodedURIComponent, decompressFromEncodedURIComponent } = LZString;
 
-export { assessShareLink, MAX_SHARE_URL_LENGTH, buildShareLink } from './share-link.js';
-
-function originPath() {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-  return { origin, pathname };
-}
+export {
+  assessShareLink,
+  MAX_SHARE_URL_LENGTH,
+  buildShareLink,
+  prepareTimelineForShare,
+  normalizeSharePath,
+  resolveShareBaseUrl,
+} from './share-link.js';
 
 /** Encode timeline for sharing — portable #data= URL when it fits. */
 export async function encodeShareLink(timeline) {
-  const compressed = compressToEncodedURIComponent(JSON.stringify(timeline));
-  const { origin, pathname } = originPath();
-  const inline = assessShareLink(compressed, origin, pathname);
+  const payload = prepareTimelineForShare(timeline);
+  const compressed = compressToEncodedURIComponent(JSON.stringify(payload));
+  const { origin, pathname, host } = resolveShareBaseUrl();
+  const inline = assessShareLink(compressed, origin, pathname, host);
 
   if (!inline.tooLarge) {
     return { ...inline, mode: 'inline' };
@@ -30,11 +38,14 @@ export async function encodeLocalShareLink(timeline) {
   if (!idbSupported()) {
     return { tooLarge: true, mode: 'stored', url: '', length: 0, maxLength: MAX_SHARE_URL_LENGTH };
   }
-  const id = await storeShareTimeline(timeline);
-  const { origin, pathname } = originPath();
-  const url = `${origin}${pathname}#share=${id}`;
+  const payload = prepareTimelineForShare(timeline);
+  const id = await storeShareTimeline(payload);
+  const { baseUrl, host } = resolveShareBaseUrl();
+  const url = `${baseUrl}#share=${id}`;
   return {
     url,
+    host,
+    baseUrl,
     tooLarge: false,
     mode: 'stored',
     shareId: id,

@@ -48,6 +48,7 @@
   --chrome-btn-hover-bg: var(--fortinet-red);
   --chrome-btn-hover-border: var(--fortinet-red);
   --chrome-btn-hover-text: #ffffff;
+  --chrome-tab-text: #6B7280;
   --app-max-width: 1400px;
   --app-gutter: clamp(1rem, 2.5vw, 1.5rem);
   --chrome-tab-hover-bg: rgba(238, 49, 36, 0.06);
@@ -1447,6 +1448,7 @@ html, body { margin: 0; padding: 0; font-family: Inter, system-ui, sans-serif; b
   border: 1px solid var(--border); border-radius: 6px; font-family: ui-monospace, monospace;
 }
 .share-warn { font-size: .82rem; color: var(--warning); line-height: 1.45; margin: 0 0 .5rem; }
+.share-hint { font-size: .82rem; color: var(--muted); line-height: 1.45; margin: 0 0 .65rem; }
 
 .selection-bar {
   display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
@@ -2837,14 +2839,8 @@ body.theme-dark .overview-event-box { background: var(--surface); border-color: 
 .attack-flow-svg { min-height: 400px; overflow: auto; }
 .attack-flow-svg svg { width: 100%; height: auto; }
 
-body.theme-dark .workspace-step.is-active {
-  color: var(--chrome-text);
-  box-shadow: inset 3px 0 0 var(--fortinet-red);
-}
-body.theme-dark .workspace-nav {
-  background: var(--surface);
-  box-shadow: var(--shadow);
-}
+body.theme-dark {
+  color-scheme: dark;
   --bg: #0D0D0D;
   --surface: #1A1A1A;
   --surface-2: #2D2D2D;
@@ -2909,6 +2905,14 @@ body.theme-dark .workspace-nav {
   --chrome-share-hover-text: #ffffff;
   --chrome-menu-open-bg: rgba(255, 255, 255, 0.16);
   --chrome-menu-open-border: rgba(255, 255, 255, 0.35);
+}
+body.theme-dark .workspace-step.is-active {
+  color: var(--chrome-text);
+  box-shadow: inset 3px 0 0 var(--fortinet-red);
+}
+body.theme-dark .workspace-nav {
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 body.theme-dark .header-menu {
   --menu-bg: #2D2D2D;
@@ -3561,8 +3565,13 @@ body.theme-dark .input-hint code {
 .mermaid-fallback { color: var(--muted); font-size: .82rem; }
 
 /* Shortcuts modal */
-.shortcuts-modal { max-width: 360px; }
-.shortcuts-list { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; margin: 1rem 0; font-size: .82rem; }
+.shortcuts-modal { max-width: 420px; max-height: min(85vh, 720px); overflow: auto; }
+.help-section { margin: 0 0 1rem; }
+.help-section-title { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 .35rem; }
+.help-section-text { font-size: .82rem; line-height: 1.45; color: var(--text); margin: 0; }
+.help-menu-list { margin: 0; padding-left: 1.1rem; font-size: .82rem; line-height: 1.5; color: var(--text); }
+.help-menu-list li { margin-bottom: .25rem; }
+.shortcuts-list { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; margin: .35rem 0 0; font-size: .82rem; }
 .shortcuts-list dt { margin: 0; }
 .shortcuts-list dd { margin: 0; color: var(--muted); }
 kbd {

@@ -143,6 +143,36 @@ test.describe('TimelineForge UI', () => {
     await expect(page.locator('.design-gallery-card.active')).toContainText('Swimlane timeline');
   });
 
+  test('share link is portable after loading APT sample', async ({ page }) => {
+    await loadAptSample(page);
+    await page.getByRole('button', { name: 'Share' }).click();
+    await expect(page.locator('.share-modal')).toBeVisible();
+    await expect(page.locator('.share-url-input')).toBeVisible();
+    await expect(page.locator('.share-url-input')).toHaveValue(/#data=/);
+    await expect(page.getByRole('button', { name: 'Same-browser bookmark' })).toBeHidden();
+    await expect(page.locator('.share-hint')).toContainText(/Portable link/i);
+  });
+
+  test('theme toggle switches dark and light mode', async ({ page }) => {
+    await skipWelcomeAndClearDraft(page);
+    await page.goto('/');
+    const themeBtn = page.locator('.header-actions button.header-btn-icon').filter({ hasText: '☾' });
+    await expect(themeBtn).toBeVisible();
+
+    await expect(page.locator('body')).not.toHaveClass(/theme-dark/);
+    let bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(bg).toMatch(/rgb\(245, 245, 245\)|rgb\(255, 255, 255\)/);
+
+    await themeBtn.click();
+    await expect(page.locator('body')).toHaveClass(/theme-dark/);
+    bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(bg).toMatch(/rgb\(13, 13, 13\)/);
+
+    const lightBtn = page.locator('.header-actions button.header-btn-icon').filter({ hasText: '☀' });
+    await lightBtn.click();
+    await expect(page.locator('body')).not.toHaveClass(/theme-dark/);
+  });
+
   test('demo banner appears for sample timelines', async ({ page }) => {
     await loadAptSample(page);
     await expect(page.locator('.demo-banner')).toBeVisible();

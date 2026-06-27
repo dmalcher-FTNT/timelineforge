@@ -1,7 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { assessShareLink, MAX_SHARE_URL_LENGTH } from '../../js/output/share-link.js';
+import { assessShareLink, MAX_SHARE_URL_LENGTH, normalizeSharePath, prepareTimelineForShare, resolveShareBaseUrl } from '../../js/output/share-link.js';
 import { encodeShareLink, encodeLocalShareLink } from '../../js/output/share-encode.js';
+import { serializeEventsToSource } from '../../js/input/serialize.js';
+import LZString from '../../vendor/lz-string.mjs';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const { compressToEncodedURIComponent } = LZString;
 
 describe('share link portable', () => {
   it('allows URLs up to 8k chars', () => {
@@ -15,6 +22,46 @@ describe('share link portable', () => {
     const long = 'x'.repeat(MAX_SHARE_URL_LENGTH + 100);
     const result = assessShareLink(long, 'http://localhost:8080', '/');
     assert.equal(result.tooLarge, true);
+  });
+
+  it('normalizeSharePath strips index.html and adds trailing slash', () => {
+    assert.equal(normalizeSharePath('/timelineforge/index.html'), '/timelineforge/');
+    assert.equal(normalizeSharePath('/timelineforge'), '/timelineforge/');
+    assert.equal(normalizeSharePath('/'), '/');
+  });
+
+  it('resolveShareBaseUrl builds base from current location', () => {
+    const local = resolveShareBaseUrl({
+      origin: 'http://localhost:8080',
+      pathname: '/',
+      host: 'localhost:8080',
+    });
+    assert.equal(local.baseUrl, 'http://localhost:8080/');
+    assert.equal(local.host, 'localhost:8080');
+
+    const pages = resolveShareBaseUrl({
+      origin: 'https://dmalcher-ftnt.github.io',
+      pathname: '/timelineforge/index.html',
+      host: 'dmalcher-ftnt.github.io',
+    });
+    assert.equal(pages.baseUrl, 'https://dmalcher-ftnt.github.io/timelineforge/');
+    assert.equal(pages.host, 'dmalcher-ftnt.github.io');
+  });
+
+  it('prepareTimelineForShare drops sourceText so loaded samples fit portable URLs', () => {
+    const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
+    const timeline = JSON.parse(readFileSync(join(root, 'data/example-timeline.json'), 'utf8'));
+    timeline.meta.sourceText = serializeEventsToSource(timeline, 'table');
+
+    const bloated = compressToEncodedURIComponent(JSON.stringify(timeline));
+    const before = assessShareLink(bloated, 'https://dmalcher-ftnt.github.io', '/timelineforge/');
+    assert.equal(before.tooLarge, true, `bloated link should exceed limit (${before.length})`);
+
+    const slim = prepareTimelineForShare(timeline);
+    const compact = compressToEncodedURIComponent(JSON.stringify(slim));
+    const after = assessShareLink(compact, 'https://dmalcher-ftnt.github.io', '/timelineforge/');
+    assert.equal(after.tooLarge, false, `slim link should fit (${after.length})`);
+    assert.match(after.url, /\/timelineforge\/#data=/);
   });
 
   it('encodeShareLink returns portable inline for small timelines', async () => {

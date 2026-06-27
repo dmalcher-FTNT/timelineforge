@@ -4,7 +4,7 @@ import { test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadAptSample as loadAptSampleHelper, goToDeliver, goToRefine } from './helpers.js';
+import { loadAptSample as loadAptSampleHelper, goToDeliver, goToRefine, goToCollect } from './helpers.js';
 
 const outDir = join(dirname(fileURLToPath(import.meta.url)), '../../docs/screenshots');
 mkdirSync(outDir, { recursive: true });
@@ -40,8 +40,8 @@ async function shot(locator, path) {
   await locator.screenshot({ path, animations: 'disabled' });
 }
 
-/** Clip from top of page through the bottom of `endLocator` (includes workspace nav). */
-async function shotFromTopThrough(page, endLocator, path) {
+/** Clip from top of page through the bottom of `endLocator`. */
+async function shotFromTopThrough(page, endLocator, path, maxHeight = 900) {
   await endLocator.scrollIntoViewIfNeeded();
   await endLocator.waitFor({ state: 'visible', timeout: 15000 });
   await page.waitForTimeout(250);
@@ -56,7 +56,7 @@ async function shotFromTopThrough(page, endLocator, path) {
       x: 0,
       y: 0,
       width,
-      height: Math.min(endBox.y + endBox.height + 16, viewport?.height ?? 900),
+      height: Math.min(endBox.y + endBox.height + 16, maxHeight),
     },
   });
 }
@@ -64,13 +64,17 @@ async function shotFromTopThrough(page, endLocator, path) {
 test('capture README screenshots', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await loadAptSample(page);
+
+  // Hero: full app shell with expanded timeline overview (Refine active)
+  await goToRefine(page);
+  await page.locator('.incident-overview').waitFor({ state: 'visible', timeout: 15000 });
+  await shotFromTopThrough(page, page.locator('.incident-panel-body'), join(outDir, 'main-overview.png'), 640);
+
   await collapseIncidentOverview(page);
 
-  await goToDeliver(page);
-  await page.locator('.publish-deliver').waitFor({ state: 'visible', timeout: 15000 });
-  await page.locator('.design-gallery-card').filter({ hasText: 'Leadership board' }).click();
-  await page.locator('#viz-preview .viz-ciso').waitFor({ state: 'visible', timeout: 15000 });
-  await shotFromTopThrough(page, page.locator('.publish-main'), join(outDir, 'design-preview.png'));
+  await goToCollect(page);
+  await page.locator('.input-workspace').waitFor({ state: 'visible', timeout: 15000 });
+  await shotFromTopThrough(page, page.locator('.input-workspace'), join(outDir, 'collect-import.png'), 720);
 
   await goToRefine(page);
   await page.locator('.edit-workspace').waitFor({ state: 'visible', timeout: 15000 });
@@ -78,5 +82,7 @@ test('capture README screenshots', async ({ page }) => {
 
   await goToDeliver(page);
   await page.locator('.publish-deliver').waitFor({ state: 'visible', timeout: 15000 });
-  await shot(page.locator('.publish-deliver'), join(outDir, 'output-exports.png'));
+  await page.locator('.design-gallery-card').filter({ hasText: 'Leadership board' }).click();
+  await page.locator('#viz-preview .viz-ciso').waitFor({ state: 'visible', timeout: 15000 });
+  await shotFromTopThrough(page, page.locator('.publish-main'), join(outDir, 'design-preview.png'));
 });

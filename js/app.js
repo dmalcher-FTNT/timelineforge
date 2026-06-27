@@ -59,7 +59,7 @@ import {
   exportPreflightSummary,
   VISUAL_PREVIEW_TYPES,
 } from './output/export-preflight.js';
-import { downloadSharePack } from './output/share-pack.js';
+import { downloadSharePack, shareModeHint } from './output/share-pack.js';
 import { findPreviewEventTarget, stepEventIndex } from './edit/event-focus.js';
 import { hasWelcomeBeenSeen, markWelcomeSeen } from './onboarding.js';
 import { clearDraft, draftAgeLabel, loadDraft, loadDraftAsync, migrateLegacyStorage, saveDraft } from './storage.js';
@@ -1675,6 +1675,14 @@ export function createApp() {
       this.showShareModal = true;
     },
 
+    shareLinkHint(mode) {
+      return shareModeHint(mode, this.shareLinkResult?.host || '');
+    },
+
+    currentShareHost() {
+      return typeof window !== 'undefined' ? window.location.host : '';
+    },
+
     async copyLocalShareBookmark() {
       const exportTimeline = this.exportTimeline();
       const result = await encodeLocalShareLink(exportTimeline);
@@ -1686,7 +1694,7 @@ export function createApp() {
       this.shareLinkResult = result;
       try {
         await navigator.clipboard.writeText(result.url);
-        this.statusMessage = 'Local bookmark copied — works only in this browser.';
+        this.statusMessage = 'Same-browser bookmark copied — opens only in this browser.';
       } catch {
         this.statusMessage = 'Copy the link from the share dialog.';
       }

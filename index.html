@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#FFFFFF">
+  <meta name="description" content="Browser-based incident response timeline editor — import SIEM/DFIR exports, map MITRE techniques, export executive PDFs and STIX. Data stays in your browser.">
+  <meta property="og:title" content="TimelineForge — IR Timeline Editor">
+  <meta property="og:description" content="Collect → Refine → Deliver. Offline PWA for SOC and executive incident briefings.">
+  <meta property="og:image" content="https://dmalcher-ftnt.github.io/timelineforge/assets/icon-512.png">
+  <meta property="og:url" content="https://dmalcher-ftnt.github.io/timelineforge/">
   <title>TimelineForge</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
@@ -217,7 +222,7 @@
           <button type="button" class="btn btn-sm btn-ghost header-btn header-btn-icon" @click="toggleTheme()" :title="(timeline.meta.theme || 'light') === 'dark' ? 'Light mode' : 'Dark mode'" :data-tip="(timeline.meta.theme || 'light') === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'" data-tip-pos="below">
             <span class="ui-icon" aria-hidden="true" x-text="(timeline.meta.theme || 'light') === 'dark' ? '☀' : '☾'"></span>
           </button>
-          <button type="button" class="btn btn-sm btn-ghost header-btn header-btn-icon" @click="showShortcutsHelp = true" data-tip="Keyboard shortcuts (⌘/Ctrl + ?)" data-tip-pos="below">
+          <button type="button" class="btn btn-sm btn-ghost header-btn header-btn-icon" @click="showShortcutsHelp = true" data-tip="Help &amp; keyboard shortcuts (⌘/Ctrl + ?)" data-tip-pos="below">
             <span class="ui-icon" aria-hidden="true">?</span>
           </button>
         </div>
@@ -1136,16 +1141,17 @@
   <div class="modal-backdrop" :class="{ 'is-open': showShareModal }" @click.self="closeShareModal()">
     <div class="modal share-modal" @click.stop>
       <h3>Share timeline</h3>
+      <p class="share-hint" x-show="shareLinkResult && !shareLinkResult.tooLarge" x-text="shareLinkHint(shareLinkResult?.mode)"></p>
       <div x-show="shareLinkResult && !shareLinkResult.tooLarge">
         <input type="text" class="share-url-input" readonly :value="shareLinkResult?.url || ''" @click="$event.target.select()">
       </div>
       <div x-show="shareLinkResult?.tooLarge">
-        <p class="share-warn">Timeline too large for a URL (<span x-text="shareLinkResult?.length"></span> chars, max <span x-text="shareLinkResult?.maxLength"></span>).</p>
+        <p class="share-warn">Timeline too large for a portable URL (<span x-text="shareLinkResult?.length"></span> chars, max <span x-text="shareLinkResult?.maxLength"></span>). Use Download timeline file, or a same-browser bookmark below.</p>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn" @click="closeShareModal()">Close</button>
         <button type="button" class="btn btn-ghost" x-show="shareLinkResult && !shareLinkResult.tooLarge" @click="copyShareLink()">Copy link</button>
-        <button type="button" class="btn btn-ghost" x-show="shareLinkResult?.tooLarge" @click="copyLocalShareBookmark()">Local bookmark</button>
+        <button type="button" class="btn btn-ghost" x-show="shareLinkResult?.tooLarge" @click="copyLocalShareBookmark()">Same-browser bookmark</button>
         <button type="button" class="btn btn-primary" @click="downloadShareFallback()">Download timeline file</button>
       </div>
     </div>
@@ -1222,7 +1228,17 @@
 
   <div class="modal-backdrop" :class="{ 'is-open': showShortcutsHelp }" @click.self="showShortcutsHelp = false">
     <div class="modal shortcuts-modal" @click.stop>
-      <h3>Keyboard shortcuts</h3>
+      <h3>Help &amp; shortcuts</h3>
+      <section class="help-section">
+        <h4 class="help-section-title">Workflow</h4>
+        <p class="help-section-text"><strong>Collect</strong> — import notes, tool exports, or reports. <strong>Refine</strong> — filter, edit, and score data quality. <strong>Deliver</strong> — pick a layout and export with preview.</p>
+      </section>
+      <section class="help-section">
+        <h4 class="help-section-title">Sharing</h4>
+        <p class="help-section-text">Header <strong>Share</strong> or Export → <strong>Shareable link</strong> builds a URL from this site’s address (<span x-text="currentShareHost()"></span>) with the timeline in the hash. Works on GitHub Pages, localhost, or any host. Large timelines: Export → Share file (.json).</p>
+      </section>
+      <section class="help-section">
+        <h4 class="help-section-title">Keyboard</h4>
       <dl class="shortcuts-list">
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>1</kbd></dt><dd>Collect workspace</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>2</kbd></dt><dd>Refine workspace</dd>
@@ -1239,6 +1255,16 @@
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>P</kbd></dt><dd>Print (in Deliver)</dd>
         <dt><kbd>?</kbd></dt><dd>This help</dd>
       </dl>
+      </section>
+      <section class="help-section">
+        <h4 class="help-section-title">Menus</h4>
+        <ul class="help-menu-list">
+          <li><strong>File</strong> — open/save JSON, samples, new timeline</li>
+          <li><strong>Tools</strong> — data quality, merge/link events, baseline compare, anonymize</li>
+          <li><strong>Export</strong> — reports, data formats, shareable link, offline HTML</li>
+          <li>Header <strong>☾/☀</strong> — light / dark theme</li>
+        </ul>
+      </section>
       <div class="modal-actions">
         <button class="btn btn-primary" @click="showShortcutsHelp = false">Close</button>
       </div>
