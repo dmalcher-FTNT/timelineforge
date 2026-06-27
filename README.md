@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <sub>Collect · Refine · Deliver — APT breach sample (v1.3.5)</sub>
+  <sub>Collect · Refine · Deliver — APT breach sample (v1.3.6)</sub>
 </p>
 
 ## What it does

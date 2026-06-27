@@ -260,20 +260,20 @@
       </div>
     </div>
 
-    <section class="incident-panel" :class="{ 'is-collapsed': incidentOverviewCollapsed }" aria-label="Timeline preview">
+    <section class="incident-panel" :class="{ 'is-collapsed': $data.incidentOverviewCollapsed }" aria-label="Timeline preview">
       <header class="incident-panel-head">
         <h2 class="incident-panel-title">Timeline preview</h2>
         <button
           type="button"
           class="incident-panel-toggle btn btn-sm btn-ghost"
           @click="toggleIncidentOverview()"
-          :aria-expanded="!incidentOverviewCollapsed"
+          :aria-expanded="!$data.incidentOverviewCollapsed"
         >
-          <span x-text="incidentOverviewCollapsed ? 'Show overview' : 'Hide overview'"></span>
-          <span class="incident-panel-toggle-icon" aria-hidden="true" x-text="incidentOverviewCollapsed ? '▾' : '▴'"></span>
+          <span x-text="$data.incidentOverviewCollapsed ? 'Show overview' : 'Hide overview'"></span>
+          <span class="incident-panel-toggle-icon" aria-hidden="true" x-text="$data.incidentOverviewCollapsed ? '▾' : '▴'"></span>
         </button>
       </header>
-      <div class="incident-panel-body" x-show="!incidentOverviewCollapsed">
+      <div class="incident-panel-body" x-show="!$data.incidentOverviewCollapsed" x-cloak>
       <div class="incident-panel-primary">
         <label class="incident-label" for="incident-title-input">Incident Title</label>
         <div class="incident-title-wrap">

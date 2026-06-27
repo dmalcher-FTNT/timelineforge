@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.6 — 2026-06-27
+
+- **Boot fix** — service worker now network-first for app HTML/JS so cached stale `app.js` cannot mismatch new `index.html`; bootstrap patches missing `incidentOverviewCollapsed` on older caches
+- **Incident overview bindings** — use `$data` accessors so collapse state never throws during Alpine init
+
 ## 1.3.5 — 2026-06-27
 
 - **Collect · Refine · Deliver** — workspace renamed from INPUT / EDIT / PUBLISH; segmented step switcher with subtitles above timeline preview

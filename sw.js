@@ -1,4 +1,4 @@
-const CACHE = 'timelineforge-offline-v9';
+const CACHE = 'timelineforge-offline-v10';
 
 const SHELL = [
   './',
@@ -13,6 +13,7 @@ const SHELL = [
   './assets/icon-512.png',
   './js/bootstrap.js',
   './js/app.js',
+  './js/workspace-tabs.js',
   './js/version.js',
   './js/utils.js',
   './js/storage.js',
@@ -40,6 +41,40 @@ const SHELL = [
   './vendor/tesseract/lang/eng.traineddata.gz',
 ];
 
+function isAppShellRequest(url) {
+  if (url.origin !== self.location.origin) return false;
+  const path = url.pathname;
+  if (path.endsWith('/index.html') || path.endsWith('/sw.js')) return true;
+  if (path.includes('/js/') && !path.includes('/vendor/')) return true;
+  return false;
+}
+
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(CACHE);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    throw new Error('Offline and not cached');
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(CACHE);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()),
@@ -58,32 +93,10 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-  const sameOrigin = url.origin === self.location.origin;
-
-  if (sameOrigin) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const network = fetch(event.request).then((response) => {
-          if (response.ok) {
-            caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
-          }
-          return response;
-        }).catch(() => cached);
-        return cached || network;
-      }),
-    );
+  if (isAppShellRequest(url)) {
+    event.respondWith(networkFirst(event.request));
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (response.ok) {
-          caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
-        }
-        return response;
-      });
-    }),
-  );
+  event.respondWith(cacheFirst(event.request));
 });
