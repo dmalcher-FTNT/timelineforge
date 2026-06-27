@@ -31,6 +31,7 @@
 <body x-data="app" x-cloak @keydown.window="handleKeydown($event)" @paste.window="handlePaste($event)">
   <div id="boot-error" class="boot-error" hidden></div>
   <header class="app-header">
+    <div class="app-shell">
     <div class="app-header-top">
       <div class="brand-lockup">
         <span class="brand-logo-wrap" aria-hidden="true">
@@ -46,7 +47,7 @@
       </div>
       <div class="header-actions">
         <span class="header-save" x-show="draftSavedAt" x-text="draftLabel()"></span>
-        <span class="header-baseline-badge" x-show="compareTimeline?.events?.length" data-tip="Baseline loaded — diff summary in EDIT sidebar; export via Tools menu">Baseline</span>
+        <span class="header-baseline-badge" x-show="compareTimeline?.events?.length" data-tip="Baseline loaded — diff summary in Refine sidebar; export via Tools menu">Baseline</span>
 
         <div class="header-groups">
           <input type="file" x-ref="openTimelineInput" accept=".json,application/json" @change="handleOpenTimelineFile($event)" hidden>
@@ -106,14 +107,17 @@
           <div class="header-dropdown" @click.outside="closeHeaderMenu()">
             <button
               type="button"
-              class="btn btn-sm header-btn header-menu-trigger"
+              class="btn btn-sm header-btn header-menu-trigger header-btn-menu"
               :class="{ 'is-open': headerMenuOpen === 'tools' }"
               aria-haspopup="menu"
               :aria-expanded="headerMenuOpen === 'tools'"
               @click.stop="toggleHeaderMenu('tools')"
-            >Tools</button>
+            >
+              <span class="header-btn-label">Tools</span>
+              <span class="header-menu-chevron" aria-hidden="true">▾</span>
+            </button>
             <div class="header-menu header-menu-wide" role="menu" x-show="headerMenuOpen === 'tools'" x-cloak @keydown.escape.window="closeHeaderMenu()">
-              <template x-for="section in headerToolsSections" :key="section.title">
+              <template x-for="section in headerToolsMenuSections()" :key="section.title">
                 <div class="header-menu-section" :class="{ 'header-menu-section-accent': section.accent }">
                   <p class="header-menu-label" x-text="section.title"></p>
                   <template x-for="item in section.items" :key="item.action">
@@ -126,20 +130,10 @@
                     >
                       <span class="header-menu-item-text">
                         <strong x-text="item.label"></strong>
+                        <small x-show="item.hint" x-text="item.hint"></small>
                       </span>
                     </button>
                   </template>
-                </div>
-              </template>
-              <template x-if="compareTimeline?.events?.length">
-                <div class="header-menu-section">
-                  <p class="header-menu-label">Baseline diff</p>
-                  <button type="button" role="menuitem" class="header-menu-item header-menu-item-rich" @click="headerToolAction('diff-markdown')">
-                    <span class="header-menu-item-text"><strong>Diff report</strong></span>
-                  </button>
-                  <button type="button" role="menuitem" class="header-menu-item header-menu-item-rich" @click="headerToolAction('diff-csv')">
-                    <span class="header-menu-item-text"><strong>Diff CSV</strong></span>
-                  </button>
                 </div>
               </template>
             </div>
@@ -148,26 +142,35 @@
           <div class="header-dropdown" @click.outside="closeHeaderMenu()">
             <button
               type="button"
-              class="btn btn-sm header-btn header-menu-trigger"
+              class="btn btn-sm header-btn header-menu-trigger header-btn-export"
               :class="{ 'is-open': headerMenuOpen === 'export' }"
               aria-haspopup="menu"
               :aria-expanded="headerMenuOpen === 'export'"
               @click.stop="toggleHeaderMenu('export')"
-            >Export</button>
-            <div class="header-menu" role="menu" x-show="headerMenuOpen === 'export'" x-cloak @keydown.escape.window="closeHeaderMenu()">
+            >
+              <span class="header-btn-label">Export</span>
+              <span class="header-menu-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div class="header-menu header-menu-wide header-menu-export" role="menu" x-show="headerMenuOpen === 'export'" x-cloak @keydown.escape.window="closeHeaderMenu()">
               <template x-for="section in headerExportMenuSections()" :key="section.title">
-                <div class="header-menu-section">
+                <div class="header-menu-section" :class="{ 'header-menu-section-accent': section.accent }">
                   <p class="header-menu-label" x-text="section.title"></p>
                   <template x-for="item in section.items" :key="item.type">
-                    <button type="button" role="menuitem" class="header-menu-item" @click="headerExport(item.type)">
-                      <span x-text="item.label"></span>
+                    <button type="button" role="menuitem" class="header-menu-item header-menu-item-rich" @click="headerExport(item.type)">
+                      <span class="header-menu-item-text">
+                        <strong x-text="item.label"></strong>
+                        <small x-show="item.hint" x-text="item.hint"></small>
+                      </span>
                     </button>
                   </template>
                 </div>
               </template>
               <div class="header-menu-sep" role="separator"></div>
-              <button type="button" role="menuitem" class="header-menu-item header-menu-item-footer" @click="headerExport('publish-tab')">
-                <span>Open Publish tab…</span>
+              <button type="button" role="menuitem" class="header-menu-item header-menu-item-footer header-menu-item-rich" @click="headerExport('publish-tab')">
+                <span class="header-menu-item-text">
+                  <strong>Open Deliver workspace</strong>
+                  <small>Pick a layout and preview every export</small>
+                </span>
               </button>
             </div>
           </div>
@@ -221,21 +224,56 @@
       </div>
     </div>
 
+    <nav class="workspace-nav" aria-label="Workspace">
+      <ol class="workspace-steps">
+        <template x-for="step in workspaceSteps" :key="step.id">
+          <li class="workspace-step-item">
+            <button
+              type="button"
+              class="workspace-step"
+              :class="{ 'is-active': tab === step.id, 'is-visited': workspaceVisited[step.id] }"
+              :data-workspace="step.id"
+              :aria-label="step.label"
+              :aria-current="tab === step.id ? 'page' : false"
+              @click="setTab(step.id)"
+            >
+              <span class="workspace-step-num" x-text="step.num" aria-hidden="true"></span>
+              <span class="workspace-step-icon" x-text="step.icon" aria-hidden="true"></span>
+              <span class="workspace-step-text">
+                <strong x-text="step.label"></strong>
+                <small x-text="step.subtitle"></small>
+              </span>
+            </button>
+          </li>
+        </template>
+      </ol>
+    </nav>
+
     <div class="demo-banner" x-show="demoBannerVisible" role="status">
       <p class="demo-banner-text">
         <strong>Demo timeline loaded.</strong>
-        Replace with your data in INPUT or start fresh via File → New timeline.
+        Replace with your data in Collect or start fresh via File → New timeline.
       </p>
       <div class="demo-banner-actions">
-        <button type="button" class="btn btn-sm" @click="goToInputFromDemoBanner()">Go to INPUT</button>
+        <button type="button" class="btn btn-sm" @click="goToInputFromDemoBanner()">Go to Collect</button>
         <button type="button" class="btn btn-sm btn-ghost" @click="dismissDemoBanner()">Dismiss</button>
       </div>
     </div>
 
-    <section class="incident-panel" aria-label="Timeline preview">
+    <section class="incident-panel" :class="{ 'is-collapsed': incidentOverviewCollapsed }" aria-label="Timeline preview">
       <header class="incident-panel-head">
         <h2 class="incident-panel-title">Timeline preview</h2>
+        <button
+          type="button"
+          class="incident-panel-toggle btn btn-sm btn-ghost"
+          @click="toggleIncidentOverview()"
+          :aria-expanded="!incidentOverviewCollapsed"
+        >
+          <span x-text="incidentOverviewCollapsed ? 'Show overview' : 'Hide overview'"></span>
+          <span class="incident-panel-toggle-icon" aria-hidden="true" x-text="incidentOverviewCollapsed ? '▾' : '▴'"></span>
+        </button>
       </header>
+      <div class="incident-panel-body" x-show="!incidentOverviewCollapsed">
       <div class="incident-panel-primary">
         <label class="incident-label" for="incident-title-input">Incident Title</label>
         <div class="incident-title-wrap">
@@ -376,21 +414,17 @@
         </div>
 
         <p class="incident-filter-note" x-show="filterIsActive()">
-          Metrics reflect active EDIT filters ·
+          Metrics reflect active Refine filters ·
           <button type="button" class="btn-link incident-filter-clear" @click="clearEditFilters()">Clear filters</button>
         </p>
       </div>
+      </div>
 
     </section>
-
-    <nav class="tabs">
-      <button type="button" class="tab-btn" :class="{ active: tab === 'input' }" @click="setTab('input')">INPUT</button>
-      <button type="button" class="tab-btn" :class="{ active: tab === 'edit' }" @click="setTab('edit')">EDIT</button>
-      <button type="button" class="tab-btn" :class="{ active: tab === 'publish' }" @click="setTab('publish')">PUBLISH</button>
-    </nav>
+    </div>
   </header>
 
-  <main class="app-main">
+  <main class="app-main app-shell">
     <!-- INPUT -->
     <section class="panel tab-panel input-panel" :class="{ 'is-active': tab === 'input' }">
       <div class="input-header">
@@ -487,8 +521,8 @@
                 What would you like to do next?
               </p>
               <div class="input-import-success-actions">
-                <button type="button" class="btn btn-sm" @click="setTab('edit')">Review in EDIT →</button>
-                <button type="button" class="btn btn-sm btn-primary" @click="setTab('publish')">Choose layout in PUBLISH →</button>
+                <button type="button" class="btn btn-sm" @click="setTab('edit')">Review in Refine →</button>
+                <button type="button" class="btn btn-sm btn-primary" @click="setTab('publish')">Choose layout in Deliver →</button>
               </div>
             </div>
           </template>
@@ -693,7 +727,7 @@
             </div>
             <template x-if="!compareTimeline?.events?.length">
               <div class="baseline-panel-empty">
-                <p class="baseline-panel-hint">Compare against an earlier timeline export. Adds, removals, and edits show in the event table and PUBLISH preview overlay.</p>
+                <p class="baseline-panel-hint">Compare against an earlier timeline export. Adds, removals, and edits show in the event table and Deliver preview overlay.</p>
                 <input type="file" x-ref="loadBaselineInput" accept=".json,application/json" @change="loadCompareTimeline($event)" hidden>
                 <div class="baseline-panel-actions">
                   <button type="button" class="btn btn-sm btn-ghost" @click="triggerLoadBaseline()">Load file…</button>
@@ -947,11 +981,11 @@
     <section class="panel tab-panel publish-panel" :class="{ 'is-active': tab === 'publish' }">
       <div class="publish-workspace">
         <div class="publish-empty-state" x-show="!timeline.events.length" x-cloak>
-          <h2 class="publish-empty-title">Nothing to publish yet</h2>
-          <p class="publish-empty-lead">Load a sample timeline or import your data in INPUT, then pick a layout and export.</p>
+          <h2 class="publish-empty-title">Nothing to deliver yet</h2>
+          <p class="publish-empty-lead">Load a sample timeline or import your data in Collect, then pick a layout and export.</p>
           <div class="publish-empty-actions">
             <button type="button" class="btn btn-primary" @click="welcomeTrySample()">Load sample</button>
-            <button type="button" class="btn" @click="setTab('input')">Go to INPUT</button>
+            <button type="button" class="btn" @click="setTab('input')">Go to Collect</button>
           </div>
         </div>
 
@@ -1069,6 +1103,7 @@
     <div class="modal welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title" @click.stop>
       <h3 id="welcome-title">Welcome to TimelineForge</h3>
       <p class="welcome-modal-lead">Turn IR notes and tool exports into executive and SOC-ready timelines — entirely in your browser. Your data stays local.</p>
+      <p class="welcome-modal-hint">Workflow: <strong>Collect</strong> evidence → <strong>Refine</strong> the timeline → <strong>Deliver</strong> layouts and exports.</p>
       <p class="welcome-modal-hint">Choose how to begin:</p>
       <div class="welcome-modal-actions">
         <button type="button" class="btn btn-primary" @click="welcomeTrySample()">Try APT breach sample</button>
@@ -1179,7 +1214,7 @@
           class="btn btn-ghost"
           x-show="!exportPreflight?.ok"
           @click="setTab('edit'); cancelExport()"
-        >Open EDIT</button>
+        >Open Refine</button>
         <button class="btn btn-primary" x-show="exportPreflight?.ok" @click="confirmExport()" x-text="exportPreflightConfirmLabel()"></button>
       </div>
     </div>
@@ -1189,19 +1224,19 @@
     <div class="modal shortcuts-modal" @click.stop>
       <h3>Keyboard shortcuts</h3>
       <dl class="shortcuts-list">
-        <dt><kbd>⌘/Ctrl</kbd> + <kbd>1</kbd></dt><dd>INPUT tab</dd>
-        <dt><kbd>⌘/Ctrl</kbd> + <kbd>2</kbd></dt><dd>EDIT tab</dd>
-        <dt><kbd>⌘/Ctrl</kbd> + <kbd>3</kbd></dt><dd>PUBLISH tab</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>1</kbd></dt><dd>Collect workspace</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>2</kbd></dt><dd>Refine workspace</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>3</kbd></dt><dd>Deliver workspace</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>N</kbd></dt><dd>New timeline (clear workspace)</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>S</kbd></dt><dd>Save draft</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>O</kbd></dt><dd>Open timeline JSON</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>⇧S</kbd></dt><dd>Save timeline to file</dd>
-        <dt><kbd>[</kbd> / <kbd>]</kbd></dt><dd>EDIT prev/next page (when paginated)</dd>
-        <dt><kbd>j</kbd> / <kbd>k</kbd></dt><dd>EDIT focus next/previous row</dd>
-        <dt><kbd>↑</kbd> / <kbd>↓</kbd></dt><dd>EDIT focus prev/next row</dd>
+        <dt><kbd>[</kbd> / <kbd>]</kbd></dt><dd>Refine prev/next page (when paginated)</dd>
+        <dt><kbd>j</kbd> / <kbd>k</kbd></dt><dd>Refine focus next/previous row</dd>
+        <dt><kbd>↑</kbd> / <kbd>↓</kbd></dt><dd>Refine focus prev/next row</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>Z</kbd></dt><dd>Undo</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>⇧Z</kbd></dt><dd>Redo</dd>
-        <dt><kbd>⌘/Ctrl</kbd> + <kbd>P</kbd></dt><dd>Print (in PUBLISH)</dd>
+        <dt><kbd>⌘/Ctrl</kbd> + <kbd>P</kbd></dt><dd>Print (in Deliver)</dd>
         <dt><kbd>?</kbd></dt><dd>This help</dd>
       </dl>
       <div class="modal-actions">

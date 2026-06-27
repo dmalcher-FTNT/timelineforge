@@ -1,11 +1,11 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { loadAptSample, loadSample, waitForExportPreview } from './helpers.js';
+import { loadAptSample, loadSample, waitForExportPreview, goToDeliver } from './helpers.js';
 
 test.describe('Export capture', () => {
   test('swimlane chart scroll width exceeds preview viewport', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+    await goToDeliver(page);
     await expect(page.locator('#viz-preview .viz-overview')).toBeVisible({ timeout: 15000 });
 
     const sizes = await page.evaluate(() => {
@@ -23,7 +23,7 @@ test.describe('Export capture', () => {
 
   test('measureExportBounds matches chart scroll width in browser', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+    await goToDeliver(page);
     await expect(page.locator('.overview-chart')).toBeVisible({ timeout: 15000 });
 
     const result = await page.evaluate(async () => {
@@ -39,7 +39,7 @@ test.describe('Export capture', () => {
 
   test('supply chain case-file layout captures timeline body', async ({ page }) => {
     await loadSample(page, 'Supply chain');
-    await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+    await goToDeliver(page);
     await page.locator('#viz-preview .viz-soc').waitFor({ state: 'visible', timeout: 15000 });
     await waitForExportPreview(page);
 

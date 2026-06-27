@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { loadAptSample } from './helpers.js';
+import { loadAptSample, goToDeliver } from './helpers.js';
 
 const GALLERY_LAYOUTS = [
   { label: 'Horizon strip', selector: '.viz-activity-strip' },
@@ -29,11 +29,11 @@ async function selectDesignLayout(page, label) {
 
 async function loadExampleOnPublish(page) {
   await loadAptSample(page);
-  await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+  await goToDeliver(page);
   await expect(page.locator('.publish-deliver')).toBeVisible({ timeout: 15000 });
 }
 
-test.describe('PUBLISH preview visual QA', () => {
+test.describe('Deliver preview visual QA', () => {
   test('suggests swimlane layout after sample load', async ({ page }) => {
     await loadExampleOnPublish(page);
     await expect(page.locator('#viz-preview .viz-overview')).toBeVisible({ timeout: 10000 });

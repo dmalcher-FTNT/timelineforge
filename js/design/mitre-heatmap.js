@@ -35,7 +35,7 @@ export function renderMitreHeatmap(container, { events, meta }) {
   if (!rows.length) {
     wrap.innerHTML = `
       <header class="viz-header"><div>${vizTitleHtml(meta)}</div></header>
-      <p class="mitre-heatmap-empty">No MITRE technique IDs on events yet — add techniques in EDIT or run quality recommendations.</p>
+      <p class="mitre-heatmap-empty">No MITRE technique IDs on events yet — add techniques in Refine or run quality recommendations.</p>
     `;
     container.appendChild(wrap);
     return;

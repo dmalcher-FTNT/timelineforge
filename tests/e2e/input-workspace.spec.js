@@ -1,12 +1,12 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { skipWelcomeAndClearDraft } from './helpers.js';
+import { skipWelcomeAndClearDraft, goToCollect } from './helpers.js';
 
-test.describe('INPUT workspace', () => {
+test.describe('Collect workspace', () => {
   test('markdown table mode uses full-width editor', async ({ page }) => {
     await skipWelcomeAndClearDraft(page);
     await page.goto('/');
-    await page.getByRole('button', { name: 'INPUT', exact: true }).click();
+    await goToCollect(page);
     await expect(page.locator('.input-panel.is-active')).toBeVisible();
 
     await page.getByRole('button', { name: 'Markdown table' }).click();
@@ -25,7 +25,7 @@ test.describe('INPUT workspace', () => {
   test('IR import shows tool format selector', async ({ page }) => {
     await skipWelcomeAndClearDraft(page);
     await page.goto('/');
-    await page.getByRole('button', { name: 'INPUT', exact: true }).click();
+    await goToCollect(page);
     await page.getByRole('button', { name: 'IR tool import' }).click();
     await expect(page.locator('#input-import-tool')).toBeVisible();
 

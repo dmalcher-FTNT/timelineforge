@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.5 — 2026-06-27
+
+- **Collect · Refine · Deliver** — workspace renamed from INPUT / EDIT / PUBLISH; segmented step switcher with subtitles above timeline preview
+- **Unified layout frame** — header and workspace panels share one 1400px content column (`app-shell`); fixes width mismatch between overview and panels
+- **Collapsible incident overview** — Hide / Show overview toggle; preference saved locally
+- **Tools menu refresh** — grouped Refine timeline, Baseline compare, and Privacy sections with action hints; removed duplicate share/print entries (Share button + Deliver exports remain)
+- **Export menu refresh** — rich items with hints, Current layout quick exports when events loaded, accent styling on Export trigger, footer link to Deliver workspace
+
 ## 1.3.4 — 2026-06-27
 
 - **Export reliability** — fixed blank PDF/PNG on small templates (Supply chain, case-file layouts); capture no longer forces preview height during html2canvas clone; PDF export fails fast when content verify fails

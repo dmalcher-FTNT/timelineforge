@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { loadAptSample, skipWelcomeAndClearDraft } from './helpers.js';
+import { loadAptSample, skipWelcomeAndClearDraft, goToDeliver, goToRefine } from './helpers.js';
 
-test.describe('EDIT usability fixes', () => {
+test.describe('Refine usability fixes', () => {
   test('quality badge opens modal without leaving current tab', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+    await goToDeliver(page);
     await expect(page.locator('#viz-preview')).toBeVisible({ timeout: 15000 });
 
     await page.locator('.incident-quality-badge').click();
@@ -14,7 +14,7 @@ test.describe('EDIT usability fixes', () => {
 
   test('MITRE technique filter chips appear when techniques are tagged', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await goToRefine(page);
     await page.getByRole('button', { name: 'Expert' }).click();
     const techniqueInput = page.locator('.edit-table tbody tr').first().locator('input[list="mitre-list"]');
     await techniqueInput.fill('T1566');
@@ -26,7 +26,7 @@ test.describe('EDIT usability fixes', () => {
 
   test('undo reverts edit immediately', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await goToRefine(page);
     const firstRow = page.locator('.edit-main [data-event-id]').first();
     await firstRow.locator('.edit-simple-row').click();
     const hostInput = firstRow.locator('.edit-event-field').filter({ hasText: 'Host' }).locator('input');

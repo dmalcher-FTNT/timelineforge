@@ -74,6 +74,7 @@ import {
 import { COMMON_TIMEZONES, resolveTimezone, timezoneLabel, timezoneShortLabel, browserTimezone } from './timezones.js';
 import { APP_CONTACT_EMAIL, APP_CONTACT_NAME, APP_DESCRIPTION, APP_FULL_TITLE, APP_NAME, APP_SUBTITLE, APP_VERSION } from './version.js';
 import { createEmptyTimeline } from './workspace.js';
+import { WORKSPACE_STEPS } from './workspace-tabs.js';
 import { defaultPhasesCopy, resolvePhases } from './phases.js';
 import { CATEGORIES, IR_TOOL_FORMATS, formatDate, generateId, parseFlexibleDate, randomStatus, sortEvents, delay } from './utils.js';
 
@@ -113,6 +114,9 @@ export function createApp() {
     appContactEmail: APP_CONTACT_EMAIL,
 
     tab: 'input',
+    workspaceSteps: WORKSPACE_STEPS,
+    workspaceVisited: { input: true, edit: false, publish: false },
+    incidentOverviewCollapsed: false,
     busy: false,
     statusMessage: '',
     _statusFlashTimer: null,
@@ -209,33 +213,33 @@ export function createApp() {
 
     headerExportSections: [
       {
-        title: 'Report templates',
+        title: 'Reports & briefings',
         items: [
-          { type: 'executive-pdf', label: 'Executive one-pager (PDF)' },
-          { type: 'appendix-pdf', label: 'Appendix page (PDF)' },
-          { type: 'appendix-png', label: 'Appendix page (PNG)' },
-          { type: 'report-pack', label: 'Report pack (ZIP)' },
-          { type: 'docx', label: 'Word document' },
-          { type: 'pptx', label: 'PowerPoint' },
-          { type: 'appendix-pptx', label: 'Appendix slide (PPTX)' },
+          { type: 'executive-pdf', label: 'Executive one-pager', hint: 'PDF summary for leadership' },
+          { type: 'appendix-pdf', label: 'Appendix page (PDF)', hint: 'Print-ready appendix from preview' },
+          { type: 'appendix-png', label: 'Appendix page (PNG)', hint: 'Raster appendix for slide decks' },
+          { type: 'report-pack', label: 'Report pack (ZIP)', hint: 'PDF, PNG, and data in one download' },
+          { type: 'docx', label: 'Word document', hint: 'Event table for IR reports' },
+          { type: 'pptx', label: 'PowerPoint deck', hint: 'Slides from current layout' },
+          { type: 'appendix-pptx', label: 'Appendix slide (PPTX)', hint: 'Single appendix slide' },
         ],
       },
       {
-        title: 'Data & integrations',
+        title: 'Evidence & data',
         items: [
-          { type: 'markdown', label: 'Markdown table' },
-          { type: 'csv', label: 'CSV export' },
-          { type: 'json', label: 'JSON data' },
-          { type: 'stix', label: 'STIX 2.1 bundle' },
-          { type: 'ical', label: 'iCalendar (.ics)' },
+          { type: 'markdown', label: 'Markdown table', hint: 'Paste into reports or wikis' },
+          { type: 'csv', label: 'CSV export', hint: 'Spreadsheet-friendly event rows' },
+          { type: 'json', label: 'JSON timeline', hint: 'Full structured timeline data' },
+          { type: 'stix', label: 'STIX 2.1 bundle', hint: 'Threat intel platform interchange' },
+          { type: 'ical', label: 'iCalendar (.ics)', hint: 'Calendar entries per event' },
         ],
       },
       {
-        title: 'Share & deliver',
+        title: 'Share & portable',
         items: [
-          { type: 'link', label: 'Shareable link' },
-          { type: 'share-file', label: 'Share file' },
-          { type: 'html', label: 'Interactive HTML' },
+          { type: 'link', label: 'Shareable link', hint: 'URL-encoded timeline for colleagues' },
+          { type: 'share-file', label: 'Share file (.json)', hint: 'Portable timeline file' },
+          { type: 'html', label: 'Interactive HTML', hint: 'Self-contained offline viewer' },
         ],
       },
     ],
@@ -257,29 +261,28 @@ export function createApp() {
 
     headerToolsSections: [
       {
-        title: 'Share & collaborate',
+        title: 'Refine timeline',
         accent: true,
         items: [
-          { action: 'share-link', label: 'Copy share link…', featured: true },
-          { action: 'share-file', label: 'Download timeline file' },
-        ],
-      },
-        {
-        title: 'Prepare timeline',
-        items: [
-          { action: 'phases', label: 'Edit attack phases…' },
-          { action: 'link-sequential', label: 'Link sequential events' },
-          { action: 'merge-duplicates', label: 'Merge duplicate events' },
-          { action: 'anonymize', label: 'Anonymize…' },
-          { action: 'load-baseline', label: 'Load baseline file…' },
-          { action: 'baseline', label: 'Snapshot current as baseline' },
-          { action: 'quality', label: 'Data quality analysis' },
+          { action: 'quality', label: 'Data quality report', hint: 'Score, issues, and fix suggestions', featured: true },
+          { action: 'merge-duplicates', label: 'Merge duplicate events', hint: 'Collapse matching time, host, and user' },
+          { action: 'link-sequential', label: 'Link sequential events', hint: 'Chain events in chronological order' },
+          { action: 'phases', label: 'Edit attack phases…', hint: 'Rename or reorder kill-chain phases' },
         ],
       },
       {
-        title: 'Utilities',
+        title: 'Baseline compare',
         items: [
-          { action: 'print', label: 'Print…' },
+          { action: 'load-baseline', label: 'Load baseline file…', hint: 'Compare against an earlier export' },
+          { action: 'baseline', label: 'Snapshot current as baseline', hint: 'In-memory diff anchor for changes' },
+          { action: 'diff-markdown', label: 'Diff report (Markdown)', hint: 'Adds, removals, and edits', requiresBaseline: true },
+          { action: 'diff-csv', label: 'Diff table (CSV)', hint: 'Spreadsheet-friendly diff export', requiresBaseline: true },
+        ],
+      },
+      {
+        title: 'Privacy',
+        items: [
+          { action: 'anonymize', label: 'Anonymize timeline…', hint: 'Replace hostnames and usernames' },
         ],
       },
     ],
@@ -324,6 +327,13 @@ export function createApp() {
       document.title = APP_FULL_TITLE;
       migrateLegacyStorage();
       this.ensureTimelineMeta();
+      try {
+        this.incidentOverviewCollapsed = localStorage.getItem('timelineforge-incident-collapsed') === '1';
+        const visited = localStorage.getItem('timelineforge-workspace-visited');
+        if (visited) this.workspaceVisited = { ...this.workspaceVisited, ...JSON.parse(visited) };
+      } catch {
+        /* ignore storage errors */
+      }
 
       this.$watch('tab', (t) => {
         if (t === 'publish') this.$nextTick(() => this.renderPreview());
@@ -443,14 +453,29 @@ export function createApp() {
     },
 
     headerExportMenuSections() {
-      const quick = this.primaryPublishActions().map((item) => ({
-        type: item.type,
-        label: item.label,
-      }));
       const sections = [];
-      if (quick.length) sections.push({ title: 'Quick export (current layout)', items: quick });
+      if (this.timeline.events?.length) {
+        const quick = this.primaryPublishActions().map((item) => ({
+          type: item.type,
+          label: item.label.replace(/^(.+) image$/, '$1').replace(/^(.+) document$/, '$1'),
+          hint: 'From current Deliver layout preview',
+        }));
+        if (quick.length) {
+          sections.push({ title: 'Current layout', accent: true, items: quick });
+        }
+      }
       sections.push(...this.headerExportSections);
       return sections;
+    },
+
+    headerToolsMenuSections() {
+      const hasBaseline = Boolean(this.compareTimeline?.events?.length);
+      return this.headerToolsSections
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) => !item.requiresBaseline || hasBaseline),
+        }))
+        .filter((section) => section.items.length > 0);
     },
 
     publishSectionsForLayout() {
@@ -597,7 +622,7 @@ export function createApp() {
       markWelcomeSeen();
       this.showWelcomeModal = false;
       this.demoBannerVisible = false;
-      this.statusMessage = 'Blank timeline — paste or import your data in INPUT.';
+      this.statusMessage = 'Blank timeline — paste or import your data in Collect.';
       this.scheduleStatusClear(3000);
     },
 
@@ -1186,7 +1211,7 @@ export function createApp() {
       }
       this.timeline.events = linkSequentialEvents(events);
       this.notifyTimelineChanged();
-      this.statusMessage = 'Sequential links applied — try Attack graph in PUBLISH.';
+      this.statusMessage = 'Sequential links applied — try Attack graph in Deliver.';
       this.scheduleStatusClear(3000);
     },
 
@@ -1250,12 +1275,27 @@ export function createApp() {
     setTab(t) {
       if (t === 'design' || t === 'output' || t === 'output-tab') t = 'publish';
       this.tab = t;
+      this.workspaceVisited[t] = true;
+      try {
+        localStorage.setItem('timelineforge-workspace-visited', JSON.stringify(this.workspaceVisited));
+      } catch {
+        /* ignore */
+      }
       this.closeHeaderMenu();
       this.closeAllModals();
       if (t === 'input' && this.timeline.events?.length) {
         this.syncSourceFromEvents();
       }
       if (t === 'publish') this.$nextTick(() => this.renderPreview());
+    },
+
+    toggleIncidentOverview() {
+      this.incidentOverviewCollapsed = !this.incidentOverviewCollapsed;
+      try {
+        localStorage.setItem('timelineforge-incident-collapsed', this.incidentOverviewCollapsed ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
     },
 
     handleKeydown(e) {
@@ -1359,7 +1399,7 @@ export function createApp() {
       this.focusedEventId = id;
       this.editExpandedId = id;
       if (idx < 0) {
-        this.statusMessage = 'Event is hidden by active EDIT filters — clear filters to edit it.';
+        this.statusMessage = 'Event is hidden by active Refine filters — clear filters to edit it.';
         this.scheduleStatusClear(3500);
         return;
       }
@@ -1700,7 +1740,7 @@ export function createApp() {
       this.timeline = timeline;
       this.closeAnonymizeModal();
       this.notifyTimelineChanged();
-      this.statusMessage = 'Timeline anonymized. Review placeholders in EDIT.';
+      this.statusMessage = 'Timeline anonymized. Review placeholders in Refine.';
       this.scheduleStatusClear(3000);
     },
 
@@ -2076,7 +2116,7 @@ export function createApp() {
       if (!this.timeline.meta) this.timeline.meta = {};
       this.timeline.meta.showCompareOverlay = true;
       this.scheduleSave();
-      this.flashStatus('Baseline snapshot saved — diff summary is in EDIT sidebar.');
+      this.flashStatus('Baseline snapshot saved — diff summary is in Refine sidebar.');
       this.$nextTick(() => this.renderPreview());
     },
 

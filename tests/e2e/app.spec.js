@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadAptSample, skipWelcomeAndClearDraft } from './helpers.js';
+import { loadAptSample, skipWelcomeAndClearDraft, goToCollect, goToRefine, goToDeliver } from './helpers.js';
 
 const appVersion = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), '../../js/version.js'),
@@ -36,9 +36,29 @@ test.describe('TimelineForge UI', () => {
     await expect(page.locator('.incident-overview')).toBeHidden();
   });
 
+  test('workspace switcher sits above incident overview', async ({ page }) => {
+    await loadAptSample(page);
+    const navBox = await page.locator('.workspace-nav').boundingBox();
+    const panelBox = await page.locator('.incident-panel').boundingBox();
+    expect(navBox).toBeTruthy();
+    expect(panelBox).toBeTruthy();
+    expect(navBox.y).toBeLessThan(panelBox.y);
+    await expect(page.locator('[data-workspace="input"].is-active')).toBeVisible();
+  });
+
+  test('incident overview can collapse', async ({ page }) => {
+    await loadAptSample(page);
+    await expect(page.locator('.incident-overview')).toBeVisible();
+    await page.getByRole('button', { name: 'Hide overview' }).click();
+    await expect(page.locator('.incident-overview')).toBeHidden();
+    await expect(page.locator('.incident-panel.is-collapsed')).toBeVisible();
+    await page.getByRole('button', { name: 'Show overview' }).click();
+    await expect(page.locator('.incident-overview')).toBeVisible();
+  });
+
   test('tab buttons switch panels', async ({ page }) => {
     await loadAptSample(page);
-    const tabs = ['INPUT', 'EDIT', 'PUBLISH'];
+    const tabs = ['Collect', 'Refine', 'Deliver'];
     const headings = [/Source data/i, /Timeline events/i, /Deliver/i];
 
     for (let i = 0; i < tabs.length; i++) {
@@ -51,7 +71,7 @@ test.describe('TimelineForge UI', () => {
 
   test('host filter shows subset of events', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await goToRefine(page);
     await expect(page.locator('.edit-main [data-event-id]')).not.toHaveCount(0, { timeout: 10000 });
     const total = await page.locator('.edit-main [data-event-id]').count();
     const firstHost = page.locator('.edit-sidebar .filter-chip').nth(1);
@@ -75,15 +95,15 @@ test.describe('TimelineForge UI', () => {
     await page.getByRole('button', { name: 'Tools', exact: true }).click();
     const toolsMenu = page.locator('.header-dropdown').nth(1).getByRole('menu');
     await expect(toolsMenu).toBeVisible();
-    await expect(toolsMenu.locator('button', { hasText: 'Anonymize' })).toBeVisible();
-    await expect(toolsMenu.locator('button', { hasText: 'Copy share link' })).toBeVisible();
+    await expect(toolsMenu.locator('button', { hasText: 'Data quality report' })).toBeVisible();
+    await expect(toolsMenu.locator('button', { hasText: 'Anonymize timeline' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Export', exact: true }).click();
     const exportMenu = page.locator('.header-dropdown').nth(2).getByRole('menu');
     await expect(exportMenu).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: 'Shareable link' })).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: 'Share file' })).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem', { name: /Open Publish tab/i })).toBeVisible();
+    await expect(exportMenu.getByRole('menuitem', { name: /Shareable link/i })).toBeVisible();
+    await expect(exportMenu.getByRole('menuitem', { name: /Share file/i })).toBeVisible();
+    await expect(exportMenu.getByRole('menuitem', { name: /Open Deliver workspace/i })).toBeVisible();
 
     await expect(page.getByRole('button', { name: 'Share', exact: true })).toBeVisible();
   });
@@ -91,7 +111,7 @@ test.describe('TimelineForge UI', () => {
   test('edit changes sync back to input source', async ({ page }) => {
     await loadAptSample(page);
     await page.waitForFunction(() => (document.body._x_dataStack?.[0]?.inputText?.length ?? 0) > 100, { timeout: 15000 });
-    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await goToRefine(page);
     await expect(page.locator('.edit-main [data-event-id]').first()).toBeVisible({ timeout: 10000 });
     const firstRow = page.locator('.edit-main [data-event-id]').first();
     await firstRow.locator('.edit-simple-row').click();
@@ -99,27 +119,27 @@ test.describe('TimelineForge UI', () => {
     await detailsField.fill('E2E sync test marker');
     await detailsField.dispatchEvent('input');
     await page.waitForFunction(() => document.body._x_dataStack?.[0]?.timeline?.events?.[0]?.details?.includes('E2E sync test marker'), { timeout: 5000 });
-    await page.getByRole('button', { name: 'INPUT', exact: true }).click();
+    await goToCollect(page);
     await page.waitForFunction(() => document.body._x_dataStack?.[0]?.inputText?.includes('E2E sync test marker'), { timeout: 5000 });
     await expect(page.locator('.tab-panel.is-active textarea')).toHaveValue(/E2E sync test marker/);
   });
 
   test('new timeline clears workspace', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await goToRefine(page);
     await expect(page.locator('.edit-main [data-event-id]')).not.toHaveCount(0);
     await page.getByRole('button', { name: 'File', exact: true }).click();
     await page.locator('.header-dropdown').first().getByRole('menuitem', { name: /New timeline/i }).click();
     await expect(page.locator('.modal-backdrop.is-open')).toHaveCount(1);
     await page.getByRole('button', { name: 'Clear workspace' }).click();
     await expect(page.locator('.modal-backdrop.is-open')).toHaveCount(0);
-    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await goToRefine(page);
     await expect(page.locator('.edit-main [data-event-id]')).toHaveCount(0);
   });
 
   test('sample load picks a suggested publish layout', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+    await goToDeliver(page);
     await expect(page.locator('.design-gallery-card.active')).toContainText('Swimlane timeline');
   });
 
@@ -132,7 +152,7 @@ test.describe('TimelineForge UI', () => {
 
   test('observable click filters edit events on APT sample', async ({ page }) => {
     await loadAptSample(page);
-    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await goToRefine(page);
     await expect(page.locator('.observables-sidebar')).toBeVisible({ timeout: 15000 });
     const total = await page.locator('.edit-main [data-event-id]').count();
     const firstObservable = page.locator('.observables-row').first();
@@ -148,10 +168,10 @@ test.describe('TimelineForge UI', () => {
     await skipWelcomeAndClearDraft(page);
     await page.goto('/');
     await page.locator('.brand-title').waitFor({ state: 'visible', timeout: 15000 });
-    await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+    await goToDeliver(page);
     await expect(page.locator('.publish-empty-state')).toBeVisible();
     await expect(page.locator('.publish-empty-state')).toContainText('Load sample');
-    await page.locator('.publish-empty-state').getByRole('button', { name: 'Go to INPUT' }).click();
+    await page.locator('.publish-empty-state').getByRole('button', { name: 'Go to Collect' }).click();
     await expect(page.locator('.tab-panel.is-active')).toContainText('Source data');
   });
 
@@ -168,7 +188,7 @@ test.describe('TimelineForge UI', () => {
     await page.getByRole('button', { name: 'Import timeline' }).click();
     await expect(page.locator('.input-import-success')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('.input-import-success')).toContainText('1 events imported');
-    await page.getByRole('button', { name: 'Review in EDIT →' }).click();
+    await page.getByRole('button', { name: 'Review in Refine →' }).click();
     await expect(page.locator('.edit-simple-list .edit-simple-item')).toHaveCount(1);
   });
 });

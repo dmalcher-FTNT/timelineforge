@@ -66,9 +66,18 @@ describe('index.html structure', () => {
     assert.match(html, /toggleHeaderMenu\('file'\)/);
     assert.match(html, /toggleHeaderMenu\('tools'\)/);
     assert.match(html, /toggleHeaderMenu\('export'\)/);
-    assert.match(html, /headerToolsSections/);
+    assert.match(html, /headerToolsMenuSections/);
+    assert.match(html, /headerExportMenuSections/);
     assert.match(html, /headerToolAction/);
-    assert.match(html, /Open Publish tab/);
+    assert.match(html, /header-btn-export/);
+    assert.match(html, /Open Deliver workspace/);
+    assert.match(html, /workspace-nav/);
+    assert.match(html, /app-shell/);
+    assert.match(html, /workspaceSteps/);
+    assert.match(html, /Collect/);
+    assert.match(html, /Refine/);
+    assert.match(html, /Deliver/);
+    assert.match(html, /toggleIncidentOverview/);
     assert.match(html, /header-btn-share/);
   });
 

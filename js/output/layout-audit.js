@@ -148,7 +148,7 @@ function auditSwimlaneClipping(root) {
 export function auditPreviewLayout(root) {
   const items = [];
   if (!root?.querySelector('.viz-ciso, .viz-overview, .viz-phase-columns, .viz-soc, .viz-event-stack, .viz-host-lanes, .viz-evidence-table, .viz-storyboard, .viz-gantt, .viz-compare, .viz-retro, .viz-scribing, .viz-fahrplan, .attack-flow-svg, .viz-mermaid')) {
-    items.push({ severity: 'warning', message: 'Preview is empty — load events and open PUBLISH first.' });
+    items.push({ severity: 'warning', message: 'Preview is empty — load events and open Deliver first.' });
     return { score: 0, overflowCount: 0, items };
   }
 

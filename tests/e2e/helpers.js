@@ -40,6 +40,26 @@ export async function loadAptSample(page) {
   await loadSample(page, 'APT breach');
 }
 
+/** @param {import('@playwright/test').Page} page @param {'input'|'edit'|'publish'} id */
+export async function goToWorkspaceTab(page, id) {
+  await page.locator(`[data-workspace="${id}"]`).click();
+}
+
+/** @param {import('@playwright/test').Page} page */
+export async function goToCollect(page) {
+  await goToWorkspaceTab(page, 'input');
+}
+
+/** @param {import('@playwright/test').Page} page */
+export async function goToRefine(page) {
+  await goToWorkspaceTab(page, 'edit');
+}
+
+/** @param {import('@playwright/test').Page} page */
+export async function goToDeliver(page) {
+  await goToWorkspaceTab(page, 'publish');
+}
+
 /** Wait for preview viz content and fonts before raster export. */
 export async function waitForExportPreview(page) {
   await page.locator(
@@ -58,7 +78,7 @@ export async function waitForExportPreview(page) {
  * @param {string} confirmLabel — e.g. "Export PDF"
  */
 export async function exportFromPublishPanel(page, deliverLabel, confirmLabel) {
-  await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
+  await goToDeliver(page);
   await page.locator('.publish-export-list').waitFor({ state: 'visible', timeout: 15000 });
   await page.locator('#viz-preview').waitFor({ state: 'visible', timeout: 15000 });
   await waitForExportPreview(page);
