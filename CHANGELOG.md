@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.8 — 2026-06-27
+
+- **Compressed hash links (v2)** — share URLs use deflate compression (~half the size of legacy LZ-String); old `#data=` links still open
+- **No session bookmarks in UI** — share flow is compressed URL or JSON download only; legacy `#share=` links still decode if present
+- **GitHub Pages deploy** — removed tag trigger that failed environment protection and cancelled main deploys
+- **Share link bootstrap** — `#data=` timelines hydrate synchronously before Alpine paints; clear errors when hash decode fails
+
 ## 1.3.7 — 2026-06-27
 
 - **Share links** — built from the current site host (`resolveShareBaseUrl`) so GitHub Pages, localhost, and custom hosts work without hardcoded URLs; strips duplicate `sourceText` so APT-sized timelines fit portable links

@@ -6,10 +6,36 @@ import Alpine from 'alpinejs';
 import { createApp } from './app.js';
 import { WORKSPACE_STEPS } from './workspace-tabs.js';
 import { APP_NAME } from './version.js';
+import { decodeShareLinkInline } from './output/share-encode.js';
+import { markWelcomeSeen } from './onboarding.js';
+
+/** Hydrate #data= share links before Alpine paints (avoids blank flash). */
+function sharedTimelineFromHash() {
+  try {
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (!hash || !hash.includes('data=')) return null;
+    const shared = decodeShareLinkInline(hash);
+    if (shared?.events?.length) {
+      markWelcomeSeen();
+      return shared;
+    }
+  } catch {
+    /* invalid hash */
+  }
+  return null;
+}
 
 /** Patch state when a stale service-worker app.js is missing newer fields. */
 function createAppState() {
   const state = createApp();
+  const shared = sharedTimelineFromHash();
+  if (shared) {
+    state.timeline = shared;
+    state.tab = 'publish';
+    state.workspaceVisited = { input: true, edit: true, publish: true };
+    state.showWelcomeModal = false;
+    state._sharedFromHash = true;
+  }
   if (!state.workspaceSteps) state.workspaceSteps = WORKSPACE_STEPS;
   if (state.incidentOverviewCollapsed === undefined) {
     state.incidentOverviewCollapsed = false;

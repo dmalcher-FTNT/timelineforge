@@ -48,7 +48,7 @@ import { detectInputFormat } from './input/detect-format.js';
 import { serializeEventsToSource, sourceFormatForInputMode } from './input/serialize.js';
 import { parseIrTool } from './input/ir-tools.js';
 import { exportJSON, exportPDF, exportPNG, exportStandaloneHTML } from './output/export.js';
-import { encodeShareLink, decodeShareLink, encodeLocalShareLink } from './output/share-encode.js';
+import { encodeShareLink, decodeShareLink } from './output/share-encode.js';
 import { validateExport } from './output/export-validate.js';
 import { createExportThumbnail } from './output/export-capture.js';
 import { exportBasename, exportTitle } from './output/export-names.js';
@@ -542,9 +542,24 @@ export function createApp() {
     },
 
     async bootstrapFromUrlOrDraft() {
+      if (this._sharedFromHash) {
+        this.ensureTimelineMeta();
+        this.applyStoredUserSettings();
+        this.afterTimelineLoad();
+        if (this.refreshEventDetails()) this.scheduleSave();
+        this.applyTheme();
+        this.notifyTimelineChanged({ skipSourceSync: true });
+        this.resetAppHistory();
+        this.scheduleAutoAnalyze();
+        this.$nextTick(() => this.renderPreview());
+        return;
+      }
+
+      const hash = window.location.hash || '';
       try {
-        const shared = await decodeShareLink(window.location.hash);
-        if (shared?.events) {
+        const shared = await decodeShareLink(hash);
+        if (shared?.events?.length) {
+          markWelcomeSeen();
           this.timeline = shared;
           this.ensureTimelineMeta();
           this.applyStoredUserSettings();
@@ -555,10 +570,21 @@ export function createApp() {
           this.tab = 'publish';
           this.resetAppHistory();
           this.scheduleAutoAnalyze();
+          this.$nextTick(() => this.renderPreview());
           return;
         }
+        if (hash.includes('data=')) {
+          this.statusMessage = 'Could not load shared timeline — link may be truncated or corrupted.';
+          this.scheduleStatusClear(8000);
+        } else if (hash.includes('share=')) {
+          this.statusMessage = 'This bookmark link only works in the browser that created it — ask for a shareable link or JSON file.';
+          this.scheduleStatusClear(8000);
+        }
       } catch {
-        /* invalid share hash */
+        if (hash.includes('data=') || hash.includes('share=')) {
+          this.statusMessage = 'Could not load shared timeline from this link.';
+          this.scheduleStatusClear(8000);
+        }
       }
 
       const draft = (await loadDraftAsync()) || loadDraft();
@@ -1681,24 +1707,6 @@ export function createApp() {
 
     currentShareHost() {
       return typeof window !== 'undefined' ? window.location.host : '';
-    },
-
-    async copyLocalShareBookmark() {
-      const exportTimeline = this.exportTimeline();
-      const result = await encodeLocalShareLink(exportTimeline);
-      if (result.tooLarge || !result.url) {
-        this.statusMessage = 'Local bookmarks need IndexedDB — use Download timeline file instead.';
-        this.scheduleStatusClear(3500);
-        return;
-      }
-      this.shareLinkResult = result;
-      try {
-        await navigator.clipboard.writeText(result.url);
-        this.statusMessage = 'Same-browser bookmark copied — opens only in this browser.';
-      } catch {
-        this.statusMessage = 'Copy the link from the share dialog.';
-      }
-      this.scheduleStatusClear(3500);
     },
 
     closeShareModal() {

@@ -42,7 +42,7 @@ Investigation timelines often live in spreadsheets, SIEM tabs, or slide decks th
 ## Privacy & offline
 
 - **No backend** — timeline JSON never leaves the browser unless you export or share it
-- **Shareable links** use your current site address (GitHub Pages, `localhost`, or any static host) with the timeline in the URL hash
+- **Shareable links** use deflate-compressed `#data=` URLs from your current site address (GitHub Pages, `localhost`, or any static host) — no server
 - **Offline PWA** after first visit; drafts saved in browser storage
 
 ## Workflow

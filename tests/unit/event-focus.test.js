@@ -19,7 +19,8 @@ describe('event-focus', () => {
 });
 
 describe('share-pack hints', () => {
-  it('warns on stored share mode', () => {
-    assert.match(shareModeHint('stored'), /browser/i);
+  it('describes compressed inline share links', () => {
+    assert.match(shareModeHint('inline'), /Compressed portable link/i);
+    assert.match(shareModeHint('inline', 'example.com'), /example.com/);
   });
 });

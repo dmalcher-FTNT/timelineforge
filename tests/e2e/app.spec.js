@@ -143,14 +143,27 @@ test.describe('TimelineForge UI', () => {
     await expect(page.locator('.design-gallery-card.active')).toContainText('Swimlane timeline');
   });
 
+  test('share URL with hash loads timeline on open', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('timelineforge-welcome-v1', '1');
+      localStorage.removeItem('timelineforge-draft');
+    });
+    const hash = '#data=N4IgtgpgLghiBcooEsoBsIJAJRgOwGcB7MAdxgCcIACASTwGNkATCPKagCgBUIwAHNDCgQAlCAA0IAgFcARinSZ4IbgE9+yBjDTUK+YmUo0A1sjS6GACxjI81QCgE1ArAoiK1EQKEjJIFJAAXkR4yiAAqtwAwn4AbhAUBMghCACMUlBWfGFoyADmVlB+MAwMbFBRRGhEFFgAxACiDQDMqQBMACx+xDIUZQCyRKxYsHIY3US9ZbQCNVDcRFVYeWwJWgC0DASxfgwk-MYAasgQpMv4UEVSBFZEpJUCxgDy8RRCaghQFDIQUsgEABE+EQAMowbzKL4-KSsJJ5PAAGRgakmRRU2gIEHWADNzFiCJpQiAAL5SCDxdgEBAAbVALBGgnWFFSfgCEBc4P4INcaJAbQADG0AKzrfnNUWpbj8gCc8FSQvg-P5AC1WchIByBA08MwEHgZBYpLcXHhwWEAOpPbAAaRB3AAgtxaE8AHISvwyTEUU2QLBRK0ABQAOkGAFYEMCoKx+ViwcxUlThL3UIj8VbMahgHRaZKe6jCWDWSDsajYigkaj8Kz-at4PLUPi2NAAOmo-RK5fWbBgYwgGeYRAYMmLHAgAA8IEORMxm7thBA8jUPio7KhkDp1iUygQqVIqzBMWkMpOrHhkABHH5YbjygBst+bSpZUlyeBMfYaFKgtGYCep-kZCg2hAABdDIYDyP8QCrGs7DyUDSTpXUVCgQDgIydV2VgARuUoXkBWFUVxX5SUZTlW94GaFU1Q1bD+G1ZD9UNEBjSgH0LStW0HSdV13SkT0EnYv1AxDcNI0yGNoCbBMQEqOQdA4bkKGQd9qDkCAShCBsOTGGs+1bKI2k8fRsVxBhPCIBsx3cU1dFoAMUzkL14hnOcREXChl2ghIkhcNgyj8fdDzlY9rDPS8whvfkAHZnxAV932YT9yh-KDULQJlmlA8DIJpEAGHQkB1M0vAEIkJCGQyigsow2jOVwtwsAIkUxQlG8OngNo2kVajaqwzkGL1A00CNIgTTNLAASiPiQAE70JpUf1sGDIMYGYSM8AAfW2BhJLjNAZOtBJ1PLA8UDrfMGBQWJUDUahY0nadWxBBIbrKS69hkEsGCoVh2HXA7qBsCh4j81ypG0dylywH6+3KAHN1Kdld2gmxgraULTwvK8VCisU-ASj8v1SvL0qZLowP8CCoPfCgTqIM6yoqlDAK6PrNS5HkmsFFriLaKVuv5BUlVVdm6MG+AmJGlixrYhaQAAMVoBEGhBBpsEOdWZrmoTFpE1b1rsbbYl2mEpPjLAkXcHRMyIeIR2oG6YGoEF+gAIVbe1LhKWmPuRvtnGBgPmGU0H8x1ZxYDyODSyqVgKFnCH5w8ryfASDcwDt7J2ECtHlAx-wT3CnHVFSQVUkfQUCbsRLkvYEn4H-MmKCFbKqdyxvpDAOQmZAekWaq1uxfqrmVGaojRX5sVKP5HrRf8TCOYlqXRvG30VCVlW1Y1rWSI9L1dZAF0AHp7T26TJuEZ2ORWDNsRqKzcTQL5hGSPBWw6IVqAAcTd6g9gEFQHcAcoCWUoNYZA8QUz2C8PwQOxhE75WTtDFQ44n4vxQCkPcecEDNExsXSKd5+TVzfETFKv5SaAVvG3KOUEb5wV7v3ACVVqHDxwqPPkPMJ6CilMLWeIsaL9S1DqIazFWKH36AaFAghMD8QPvLE+Z8zb7RkrgQgJByBUErMiaoa17oQEEEQNQAcnY-wDE8VsCs8QNkYJ5fgmD7DqTyPgaB1B2j8hscwfgRA7BQAIIgyGC4UF90eFdXOB5lAdHwdjQhHQAAcrD4o1zIfXChndm7RRodTPK+h1FGCoH4PI3jGHIWYUyTJbDOZ4W5oRVqPChZykFr1BedVhGMWGqvOW68QCSOfsgGR+9BIKNPufC2KgQQ2AHKQf+qYTgEH0RgJ61A3Y+xkHA5yWh2SR1TGmcGSCoaeSwOqA4YTsERIQFEwuYUYnXlSB0aUxCXzJKSsTNJTdAJxKyR3f8xyShFBAohPupTm6fMqQ1fCXC6lTzifAT+c9BFLxEZLDpMs14cRtHaR0zo3R7zkUM7pijRkHSwA0AE2B9EiCugHXJhhNE0HUjYG6NRWwumgKQGoJhqD-CqK-LSq4UDzhnHQRgLByj6IYEIX6ATkGHJUA9K6b9wnBSFNEiKtz4mJMJi88hf5Ka0Lynsdgtg8AjgQgCoAA';
+    await page.goto('/' + hash);
+    await expect(page.locator('.incident-title-input')).toHaveValue('Ransomware Incident (Template)', { timeout: 15000 });
+    await expect(page.locator('[data-workspace="publish"].is-active')).toBeVisible();
+    const events = await page.evaluate(() => document.body._x_dataStack?.[0]?.timeline?.events?.length);
+    expect(events).toBe(8);
+  });
+
   test('share link is portable after loading APT sample', async ({ page }) => {
     await loadAptSample(page);
     await page.getByRole('button', { name: 'Share' }).click();
     await expect(page.locator('.share-modal')).toBeVisible();
     await expect(page.locator('.share-url-input')).toBeVisible();
     await expect(page.locator('.share-url-input')).toHaveValue(/#data=/);
-    await expect(page.getByRole('button', { name: 'Same-browser bookmark' })).toBeHidden();
-    await expect(page.locator('.share-hint')).toContainText(/Portable link/i);
+    await expect(page.getByRole('button', { name: 'Copy link' })).toBeVisible();
+    await expect(page.locator('.share-url-input')).toHaveValue(/#data=2\./);
   });
 
   test('theme toggle switches dark and light mode', async ({ page }) => {

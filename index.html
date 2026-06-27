@@ -1146,12 +1146,11 @@
         <input type="text" class="share-url-input" readonly :value="shareLinkResult?.url || ''" @click="$event.target.select()">
       </div>
       <div x-show="shareLinkResult?.tooLarge">
-        <p class="share-warn">Timeline too large for a portable URL (<span x-text="shareLinkResult?.length"></span> chars, max <span x-text="shareLinkResult?.maxLength"></span>). Use Download timeline file, or a same-browser bookmark below.</p>
+        <p class="share-warn">Timeline too large for a compressed URL (<span x-text="shareLinkResult?.length"></span> chars, max <span x-text="shareLinkResult?.maxLength"></span>). Download the timeline JSON file instead.</p>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn" @click="closeShareModal()">Close</button>
         <button type="button" class="btn btn-ghost" x-show="shareLinkResult && !shareLinkResult.tooLarge" @click="copyShareLink()">Copy link</button>
-        <button type="button" class="btn btn-ghost" x-show="shareLinkResult?.tooLarge" @click="copyLocalShareBookmark()">Same-browser bookmark</button>
         <button type="button" class="btn btn-primary" @click="downloadShareFallback()">Download timeline file</button>
       </div>
     </div>
@@ -1235,7 +1234,7 @@
       </section>
       <section class="help-section">
         <h4 class="help-section-title">Sharing</h4>
-        <p class="help-section-text">Header <strong>Share</strong> or Export → <strong>Shareable link</strong> builds a URL from this site’s address (<span x-text="currentShareHost()"></span>) with the timeline in the hash. Works on GitHub Pages, localhost, or any host. Large timelines: Export → Share file (.json).</p>
+        <p class="help-section-text">Header <strong>Share</strong> or Export → <strong>Shareable link</strong> builds a compressed URL from this site’s address (<span x-text="currentShareHost()"></span>) with the timeline in the hash — no server needed. Legacy links still open. Timelines that exceed the URL limit: download JSON and share the file.</p>
       </section>
       <section class="help-section">
         <h4 class="help-section-title">Keyboard</h4>

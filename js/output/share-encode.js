@@ -1,4 +1,3 @@
-import LZString from '../../vendor/lz-string.mjs';
 import { idbSupported, loadShareTimeline, storeShareTimeline } from '../share-store.js';
 import {
   assessShareLink,
@@ -7,8 +6,7 @@ import {
   prepareTimelineForShare,
   resolveShareBaseUrl,
 } from './share-link.js';
-
-const { compressToEncodedURIComponent, decompressFromEncodedURIComponent } = LZString;
+import { compressTimelineJson, decompressTimelinePayload } from './share-compress.js';
 
 export {
   assessShareLink,
@@ -19,10 +17,12 @@ export {
   resolveShareBaseUrl,
 } from './share-link.js';
 
-/** Encode timeline for sharing — portable #data= URL when it fits. */
+export { compressTimelineJson, decompressTimelinePayload, SHARE_CODEC_V2_PREFIX } from './share-compress.js';
+
+/** Encode timeline for sharing — compressed #data= URL when it fits. */
 export async function encodeShareLink(timeline) {
   const payload = prepareTimelineForShare(timeline);
-  const compressed = compressToEncodedURIComponent(JSON.stringify(payload));
+  const compressed = compressTimelineJson(JSON.stringify(payload));
   const { origin, pathname, host } = resolveShareBaseUrl();
   const inline = assessShareLink(compressed, origin, pathname, host);
 
@@ -33,7 +33,7 @@ export async function encodeShareLink(timeline) {
   return { ...inline, tooLarge: true, mode: 'inline' };
 }
 
-/** Short #share=id link stored in IndexedDB — same browser only. */
+/** @deprecated Same-browser only — not exposed in UI; kept for decode of old #share= links. */
 export async function encodeLocalShareLink(timeline) {
   if (!idbSupported()) {
     return { tooLarge: true, mode: 'stored', url: '', length: 0, maxLength: MAX_SHARE_URL_LENGTH };
@@ -58,7 +58,7 @@ export function decodeShareLinkInline(hash) {
   const match = hash.match(/data=([^&]+)/);
   if (!match) return null;
   try {
-    return JSON.parse(decompressFromEncodedURIComponent(match[1]));
+    return decompressTimelinePayload(match[1]);
   } catch {
     return null;
   }
