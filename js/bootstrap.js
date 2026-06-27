@@ -78,7 +78,20 @@ function showBootError(msg) {
 }
 
 Alpine.start();
+document.body?.removeAttribute('x-cloak');
+
+const BOOT_WATCH_MS = 12000;
+setTimeout(() => {
+  if (document.body?.hasAttribute('x-cloak')) {
+    showBootError('App is taking too long to start. Refresh the page or clear site data for this site.');
+  }
+}, BOOT_WATCH_MS);
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  const registerSw = () => navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(registerSw, { timeout: 4000 });
+  } else {
+    setTimeout(registerSw, 1500);
+  }
 }

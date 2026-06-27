@@ -34,7 +34,7 @@ export function shareModeHint(mode, host = '') {
     const hostNote = host
       ? ` Built from ${host} — recipients open TimelineForge at the same address.`
       : ' Works on GitHub Pages, localhost, or any static host.';
-    return `Compressed portable link — timeline embedded in the URL hash (no server).${hostNote} For very large timelines, use Download timeline file.`;
+    return `Portable share link — timeline embedded in the URL hash (no server).${hostNote} For very large timelines, use Download timeline file.`;
   }
   return '';
 }

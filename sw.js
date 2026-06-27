@@ -1,6 +1,7 @@
-const CACHE = 'timelineforge-offline-v16';
+const CACHE = 'timelineforge-offline-v17';
 
-const SHELL = [
+/** Minimum assets required to boot — kept small so mobile SW install succeeds. */
+const CORE_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
@@ -26,12 +27,16 @@ const SHELL = [
   './vendor/alpinejs.mjs',
   './vendor/d3.mjs',
   './vendor/lz-string.mjs',
+  './vendor/fflate.mjs',
+];
+
+/** Cached lazily on first use — too large for fragile mobile precache. */
+const OPTIONAL_SHELL = [
   './vendor/mammoth.mjs',
   './vendor/html2canvas.mjs',
   './vendor/jspdf.mjs',
   './vendor/svg2pdf.mjs',
   './vendor/pptxgenjs.mjs',
-  './vendor/fflate.mjs',
   './vendor/mermaid.esm.min.mjs',
   './vendor/pdfjs-dist/build/pdf.mjs',
   './vendor/pdfjs-dist/build/pdf.worker.mjs',
@@ -47,6 +52,11 @@ function isAppShellRequest(url) {
   if (path.endsWith('/index.html') || path.endsWith('/sw.js')) return true;
   if (path.includes('/js/') && !path.includes('/vendor/') && !path.includes('/lib/')) return true;
   return false;
+}
+
+function isDependencyRequest(url) {
+  const path = url.pathname;
+  return path.includes('/vendor/') || path.includes('/lib/');
 }
 
 async function networkFirst(request) {
@@ -75,17 +85,32 @@ async function cacheFirst(request) {
   return response;
 }
 
+async function precacheResilient(urls) {
+  const cache = await caches.open(CACHE);
+  await Promise.all(
+    urls.map(async (url) => {
+      try {
+        await cache.add(url);
+      } catch {
+        /* skip missing or oversized assets — boot must not fail on mobile */
+      }
+    }),
+  );
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()),
+    precacheResilient(CORE_SHELL)
+      .then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-    ).then(() => self.clients.claim()),
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => precacheResilient(OPTIONAL_SHELL))
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -93,7 +118,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-  if (isAppShellRequest(url)) {
+  if (url.origin !== self.location.origin) return;
+
+  if (isAppShellRequest(url) || isDependencyRequest(url)) {
     event.respondWith(networkFirst(event.request));
     return;
   }

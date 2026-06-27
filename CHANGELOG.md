@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.10 — 2026-06-27
+
+- **Mobile boot fix** — service worker uses resilient precache (core assets only), network-first for app shell and dependencies, deferred registration; avoids blank page from stale or failed mobile caches
+- **Share links** — reverted to LZ-String `#data=` encoding (removed deflate v2 codec)
+
 ## 1.3.9 — 2026-06-27
 
 - **GitHub Pages fix** — deploy ships browser dependencies as `/lib/` (GitHub blocks `/vendor/`); share links and the app boot on the live demo again

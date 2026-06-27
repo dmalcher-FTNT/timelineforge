@@ -19,8 +19,8 @@ describe('event-focus', () => {
 });
 
 describe('share-pack hints', () => {
-  it('describes compressed inline share links', () => {
-    assert.match(shareModeHint('inline'), /Compressed portable link/i);
+  it('describes portable inline share links', () => {
+    assert.match(shareModeHint('inline'), /Portable share link/i);
     assert.match(shareModeHint('inline', 'example.com'), /example.com/);
   });
 });

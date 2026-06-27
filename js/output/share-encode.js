@@ -1,3 +1,4 @@
+import LZString from '../../vendor/lz-string.mjs';
 import { idbSupported, loadShareTimeline, storeShareTimeline } from '../share-store.js';
 import {
   assessShareLink,
@@ -6,7 +7,8 @@ import {
   prepareTimelineForShare,
   resolveShareBaseUrl,
 } from './share-link.js';
-import { compressTimelineJson, decompressTimelinePayload } from './share-compress.js';
+
+const { compressToEncodedURIComponent, decompressFromEncodedURIComponent } = LZString;
 
 export {
   assessShareLink,
@@ -17,12 +19,10 @@ export {
   resolveShareBaseUrl,
 } from './share-link.js';
 
-export { compressTimelineJson, decompressTimelinePayload, SHARE_CODEC_V2_PREFIX } from './share-compress.js';
-
-/** Encode timeline for sharing — compressed #data= URL when it fits. */
+/** Encode timeline for sharing — portable #data= URL when it fits. */
 export async function encodeShareLink(timeline) {
   const payload = prepareTimelineForShare(timeline);
-  const compressed = compressTimelineJson(JSON.stringify(payload));
+  const compressed = compressToEncodedURIComponent(JSON.stringify(payload));
   const { origin, pathname, host } = resolveShareBaseUrl();
   const inline = assessShareLink(compressed, origin, pathname, host);
 
@@ -58,7 +58,7 @@ export function decodeShareLinkInline(hash) {
   const match = hash.match(/data=([^&]+)/);
   if (!match) return null;
   try {
-    return decompressTimelinePayload(match[1]);
+    return JSON.parse(decompressFromEncodedURIComponent(match[1]));
   } catch {
     return null;
   }
