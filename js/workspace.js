@@ -10,7 +10,6 @@ export function createEmptyTimeline(preserve = {}) {
       version: 1,
       theme: preserve.theme || 'light',
       accentColor: preserve.accentColor || DEFAULT_ACCENT,
-      applyEditFiltersToExport: false,
       sourceMode: 'manual',
       sourceText: '',
       sourceImportTool: 'generic-csv',

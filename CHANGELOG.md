@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.2 — 2026-06-26
+
+- **First-run welcome** — choose blank timeline or APT breach sample on first visit (no auto-load surprise)
+- **Demo banner** — dismissible notice when a sample timeline is loaded
+- **Import timeline button** — explicit parse control with post-import CTAs to EDIT and PUBLISH
+- **Clear source confirmation** — emptying INPUT no longer silently deletes imported events
+- **Data vs layout quality labels** — distinct naming for timeline data quality and layout preview quality
+- **APT sample IOCs** — example timeline includes IPs, domains, URLs, and hashes for observables demo
+- **Swimlane preview scroll** — long timelines use a wider chart with horizontal scroll instead of squeezing event cards
+- **Removed layout quality bar** — dropped the non-working preview score / Check layout strip from PUBLISH (export preflight still checks layout when needed)
+- **Slimmer PUBLISH deliver panel** — preview exports only; report templates, data formats, and share moved to header Export menu
+- **Removed export filter toggle** — exports always include the full timeline (EDIT filters remain for review only)
+- **Persistent status toasts** — global dismissible notifications (8s minimum) replace vanishing tab-local messages
+- **MITRE technique filter** — filter chips in EDIT sidebar; parent IDs include sub-techniques
+- **Quality badge behavior** — header badge opens the report modal without switching tabs
+- **Keyboard shortcuts** — removed duplicate ⌘/Ctrl+4 entry
+- **MITRE coverage layout** — technique × phase heatmap in PUBLISH gallery
+- **Containment lanes layout** — attacker vs defender response swimlanes
+- **Baseline compare in EDIT** — consolidated sidebar section with hint, Load file / Snapshot current, and inline diff when active (also in Tools menu)
+
 ## 1.3.0 — 2026-06-26
 
 - **PUBLISH tab** — merges DESIGN preview and OUTPUT exports: layout gallery, live preview, layout quality check, and tiered deliver panel in one place

@@ -1,5 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
+import { loadAptSample } from './helpers.js';
 
 const GALLERY_LAYOUTS = [
   { label: 'Horizon strip', selector: '.viz-activity-strip' },
@@ -11,6 +12,8 @@ const GALLERY_LAYOUTS = [
   { label: 'Host lanes', selector: '.viz-host-lanes', itemSelector: '.host-lane', minItems: 1 },
   { label: 'Evidence table', selector: '.viz-evidence-table', itemSelector: '.evidence-table tbody tr', minItems: 5 },
   { label: 'Milestone storyboard', selector: '.viz-storyboard', itemSelector: '.storyboard-card', minItems: 1 },
+  { label: 'MITRE coverage', selector: '.viz-mitre-heatmap' },
+  { label: 'Containment lanes', selector: '.viz-containment-lanes', itemSelector: '.containment-lane', minItems: 2 },
 ];
 
 const KEY_STYLES = [
@@ -25,13 +28,7 @@ async function selectDesignLayout(page, label) {
 }
 
 async function loadExampleOnPublish(page) {
-  await page.goto('/');
-  await expect(page.locator('.brand-title')).toHaveText('TimelineForge', { timeout: 15000 });
-  await page.getByRole('button', { name: 'File', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Samples' }).click();
-  await expect(page.locator('.header-submenu')).toBeVisible();
-  await page.locator('.header-submenu').getByRole('menuitem', { name: 'APT breach' }).click();
-  await expect(page.locator('.incident-overview')).toBeVisible({ timeout: 15000 });
+  await loadAptSample(page);
   await page.getByRole('button', { name: 'PUBLISH', exact: true }).click();
   await expect(page.locator('.publish-deliver')).toBeVisible({ timeout: 15000 });
 }
@@ -53,8 +50,8 @@ test.describe('PUBLISH preview visual QA', () => {
 
   test('deliver panel shows this view exports', async ({ page }) => {
     await loadExampleOnPublish(page);
-    await expect(page.locator('.publish-export-group').filter({ hasText: 'This view' })).toBeVisible();
-    await expect(page.locator('.publish-deliver .output-card').filter({ hasText: 'PNG image' })).toBeVisible();
+    await expect(page.locator('.publish-deliver-lead')).toBeVisible();
+    await expect(page.locator('.publish-primary-actions .publish-primary-btn').first()).toBeVisible();
   });
 
   test('case file spine renders alternating cards', async ({ page }) => {
@@ -92,15 +89,6 @@ test.describe('PUBLISH preview visual QA', () => {
       await expect(page.locator(`#viz-preview ${style.selector}`)).toBeVisible({ timeout: 15000 });
     });
   }
-
-  test('layout audit runs for case file view', async ({ page }) => {
-    await loadExampleOnPublish(page);
-    await page.locator('.design-audience-chip').filter({ hasText: 'Analyst' }).click();
-    await selectDesignLayout(page, 'Case file · Spine');
-    await expect(page.locator('#viz-preview .viz-soc')).toBeVisible({ timeout: 10000 });
-    await page.getByRole('button', { name: 'Check layout' }).click();
-    await expect(page.locator('.preview-quality-bar strong')).toHaveText(/\d+\/100/);
-  });
 
   test('clicking preview event opens detail popup', async ({ page }) => {
     await loadExampleOnPublish(page);

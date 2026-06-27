@@ -4,23 +4,18 @@ import { test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadAptSample as loadAptSampleHelper } from './helpers.js';
 
 const outDir = join(dirname(fileURLToPath(import.meta.url)), '../../docs/screenshots');
 mkdirSync(outDir, { recursive: true });
 
 const SCREENSHOT_CSS = `
-  .preview-quality-bar { display: none !important; }
   .status-bar { display: none !important; }
+  .demo-banner { display: none !important; }
 `;
 
 async function loadAptSample(page) {
-  await page.goto('/');
-  await page.locator('.brand-title').waitFor({ state: 'visible', timeout: 15000 });
-  await page.getByRole('button', { name: 'File', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Samples' }).click();
-  await page.locator('.header-submenu').waitFor({ state: 'visible' });
-  await page.locator('.header-submenu').getByRole('menuitem', { name: 'APT breach' }).click();
-  await page.locator('.incident-overview').waitFor({ state: 'visible', timeout: 15000 });
+  await loadAptSampleHelper(page);
   await page.addStyleTag({ content: SCREENSHOT_CSS });
 }
 

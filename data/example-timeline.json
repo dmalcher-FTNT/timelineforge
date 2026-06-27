@@ -12,7 +12,7 @@
       "timestampEnd": null,
       "hostname": "HOST-001",
       "username": "DOMAIN\\USER-001",
-      "details": "Successful phishing via Teams. User was tricked into downloading a ZIP file containing a backdoor, extracting it, and running a fake setup.exe file. Host infected with LockAppHost backdoor.",
+      "details": "Successful phishing via Teams. User downloaded a ZIP from https://malware-drop.example.net/teams-setup.zip (MD5 a1b2c3d4e5f6789012345678abcdef01). Host infected with LockAppHost backdoor.",
       "category": "initial-access",
       "phase": 1,
       "tags": ["phishing", "lockapphost"]
@@ -23,7 +23,7 @@
       "timestampEnd": null,
       "hostname": "HOST-002",
       "username": "DOMAIN\\USER-002",
-      "details": "Successful phishing via personal email. User was tricked into downloading a ZIP file containing a backdoor, extracting it, and running a fake setup.exe file. Host infected with LockAppHost backdoor.",
+      "details": "Successful phishing via personal email from notify-mail.example.com. User ran fake setup.exe. Host infected with LockAppHost backdoor.",
       "category": "initial-access",
       "phase": 1,
       "tags": ["phishing", "lockapphost"]
@@ -34,7 +34,7 @@
       "timestampEnd": null,
       "hostname": "HOST-002",
       "username": "N/A",
-      "details": "Host infected with updating.dll backdoor.",
+      "details": "Host infected with updating.dll backdoor (SHA256 a1b2c3d4e5f6789012345678abcdef01a1b2c3d4e5f6789012345678abcdef01).",
       "category": "persistence",
       "phase": 1,
       "tags": ["backdoor"]
@@ -67,7 +67,7 @@
       "timestampEnd": null,
       "hostname": "HOST-003",
       "username": "DOMAIN\\USER-003",
-      "details": "Remote Desktop connection from VPN address VPN-IP-001. DOMAIN\\USER-003 installed NetAPI backdoor. NetAPI backdoor is a confirmed variant of LockAppHost backdoor.",
+      "details": "Remote Desktop connection from VPN address 203.0.113.45. DOMAIN\\USER-003 installed NetAPI backdoor. NetAPI backdoor is a confirmed variant of LockAppHost backdoor.",
       "category": "persistence",
       "phase": 2,
       "tags": ["rdp", "netapi", "backdoor"]
@@ -78,7 +78,7 @@
       "timestampEnd": null,
       "hostname": "HOST-004",
       "username": "DOMAIN\\USER-003",
-      "details": "Remote Desktop connection from HOST-005 / INTERNAL-IP-001. DOMAIN\\USER-003 installed OpenSSH server.",
+      "details": "Remote Desktop connection from HOST-005 / 10.0.4.12. DOMAIN\\USER-003 installed OpenSSH server.",
       "category": "persistence",
       "phase": 2,
       "tags": ["rdp", "openssh"]
@@ -100,7 +100,7 @@
       "timestampEnd": "2025-04-13T10:36:34Z",
       "hostname": "HOST-006",
       "username": "N/A",
-      "details": "Web server logs show threat actor browsing the website running on this host. Source IP: EXTERNAL-IP-001.",
+      "details": "Web server logs show threat actor browsing the website running on this host. Source IP: 198.51.100.77.",
       "category": "reconnaissance",
       "phase": 2,
       "tags": ["recon"]
@@ -188,7 +188,7 @@
       "timestampEnd": "2026-03-26T23:59:59Z",
       "hostname": "HOST-003",
       "username": "N/A",
-      "details": "Symantec EDR blocked traffic to various C2 servers for SmartPlatform backdoor.",
+      "details": "Symantec EDR blocked traffic to C2 host c2.smartplatform.example.net for SmartPlatform backdoor.",
       "category": "detection",
       "phase": 4,
       "tags": ["c2", "edr"]
@@ -254,7 +254,7 @@
       "timestampEnd": "2026-04-11T23:59:59Z",
       "hostname": "Multiple",
       "username": "Multiple",
-      "details": "Threat actor attempted to connect to VPN using multiple accounts. Connections originated from EXTERNAL-IP-001 and EXTERNAL-IP-002. All attempts failed.",
+      "details": "Threat actor attempted to connect to VPN using multiple accounts. Connections originated from 198.51.100.77 and 198.51.100.88. All attempts failed.",
       "category": "initial-access",
       "phase": 5,
       "tags": ["vpn"]
@@ -276,7 +276,7 @@
       "timestampEnd": null,
       "hostname": "N/A",
       "username": "DOMAIN\\USER-008",
-      "details": "Threat actor successfully connected to VPN using credentials of DOMAIN\\USER-008. This was the first successful connection. Source IP: EXTERNAL-IP-001. Assigned VPN address: VPN-IP-002.",
+      "details": "Threat actor successfully connected to VPN using credentials of DOMAIN\\USER-008. First successful connection. Source IP: 198.51.100.77. Assigned VPN address: 203.0.113.88.",
       "category": "initial-access",
       "phase": 5,
       "tags": ["vpn"]
@@ -287,7 +287,7 @@
       "timestampEnd": null,
       "hostname": "HOST-013",
       "username": "DOMAIN\\USER-009",
-      "details": "Network connection from VPN address VPN-IP-002.",
+      "details": "Network connection from VPN address 203.0.113.88.",
       "category": "lateral-movement",
       "phase": 5,
       "tags": ["vpn"]

@@ -127,6 +127,12 @@ export function buildTimeAxis(events) {
   return { years, months, min: start, max: end };
 }
 
+/** Minimum swimlane chart width from span — keeps long timelines readable with horizontal scroll. */
+export function timelineChartMinWidth(monthCount, { labelWidth = 220, pxPerMonth = 72, minMonths = 12 } = {}) {
+  const months = Math.max(minMonths, monthCount || minMonths);
+  return labelWidth + months * pxPerMonth;
+}
+
 export function timeToPercent(time, min, max) {
   if (max <= min) return 50;
   return Math.max(2, Math.min(98, ((time - min) / (max - min)) * 100));

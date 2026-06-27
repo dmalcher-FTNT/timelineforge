@@ -6,7 +6,9 @@ import { renderEvidenceTable } from './evidence-table.js';
 import { applyCompareOverlay } from './compare-overlay.js';
 import { renderCompare } from './compare.js';
 import { renderCisoSummary } from './ciso-summary.js';
+import { renderContainmentLanes } from './containment-lanes.js';
 import { renderHostLanes } from './host-lanes.js';
+import { renderMitreHeatmap } from './mitre-heatmap.js';
 import { renderMilestoneStoryboard } from './milestone-storyboard.js';
 import { renderOverviewGrid } from './overview-grid.js';
 import { renderPhaseColumns } from './phase-columns.js';
@@ -24,6 +26,8 @@ const TYPE_RENDERERS = {
   'soc-details': renderSocDetails,
   'event-stack': renderEventStack,
   'host-lanes': renderHostLanes,
+  'mitre-heatmap': renderMitreHeatmap,
+  'containment-lanes': renderContainmentLanes,
   'evidence-table': renderEvidenceTable,
   'milestone-storyboard': renderMilestoneStoryboard,
   compare: renderCompare,
@@ -54,6 +58,8 @@ function resolveRendererKey(vizType, vizStyle) {
   if (vizType === 'appendix-timeline') return 'appendix-timeline';
   if (vizType === 'event-stack') return 'event-stack';
   if (vizType === 'host-lanes') return 'host-lanes';
+  if (vizType === 'mitre-heatmap') return 'mitre-heatmap';
+  if (vizType === 'containment-lanes') return 'containment-lanes';
   if (vizType === 'evidence-table') return 'evidence-table';
   if (vizType === 'milestone-storyboard') return 'milestone-storyboard';
   if (style === 'case-full') return 'soc-details';
@@ -103,7 +109,7 @@ export function renderVisualization(container, { events, meta, vizType, vizStyle
   renderer(container, { events: ordered, meta, theme, vizType, vizStyle: style });
   applyOverlay();
   if (theme === 'dark') {
-    container.querySelector('.viz-ciso, .viz-overview, .viz-phase-columns, .viz-soc, .viz-event-stack, .viz-host-lanes, .viz-evidence-table, .viz-storyboard, .viz-gantt, .viz-mermaid, .viz-attack-flow, .viz-activity-strip, .viz-appendix, .viz-fahrplan')?.classList.add('viz-dark');
+    container.querySelector('.viz-ciso, .viz-overview, .viz-phase-columns, .viz-soc, .viz-event-stack, .viz-host-lanes, .viz-evidence-table, .viz-storyboard, .viz-gantt, .viz-mermaid, .viz-attack-flow, .viz-activity-strip, .viz-appendix, .viz-fahrplan, .viz-mitre-heatmap, .viz-containment-lanes')?.classList.add('viz-dark');
   }
 }
 
@@ -116,6 +122,8 @@ export function getPreviewDimensions(vizType) {
   if (vizType === 'soc-details') return { width: 900, height: 1400 };
   if (vizType === 'event-stack') return { width: 880, height: 1400 };
   if (vizType === 'host-lanes') return { width: 1100, height: Math.max(600, 900) };
+  if (vizType === 'mitre-heatmap') return { width: 960, height: Math.max(520, 680) };
+  if (vizType === 'containment-lanes') return { width: 1100, height: Math.max(520, 720) };
   if (vizType === 'evidence-table') return { width: 1000, height: 1200 };
   if (vizType === 'milestone-storyboard') return { width: 1100, height: 720 };
   if (vizType === 'compare') return { width: 1200, height: 900 };

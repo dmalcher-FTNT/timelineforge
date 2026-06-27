@@ -1,8 +1,10 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
+import { skipWelcomeAndClearDraft } from './helpers.js';
 
 test.describe('INPUT workspace', () => {
   test('markdown table mode uses full-width editor', async ({ page }) => {
+    await skipWelcomeAndClearDraft(page);
     await page.goto('/');
     await page.getByRole('button', { name: 'INPUT', exact: true }).click();
     await expect(page.locator('.input-panel.is-active')).toBeVisible();
@@ -21,6 +23,7 @@ test.describe('INPUT workspace', () => {
   });
 
   test('IR import shows tool format selector', async ({ page }) => {
+    await skipWelcomeAndClearDraft(page);
     await page.goto('/');
     await page.getByRole('button', { name: 'INPUT', exact: true }).click();
     await page.getByRole('button', { name: 'IR tool import' }).click();

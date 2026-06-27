@@ -46,7 +46,7 @@
       </div>
       <div class="header-actions">
         <span class="header-save" x-show="draftSavedAt" x-text="draftLabel()"></span>
-        <span class="header-baseline-badge" x-show="compareTimeline?.events?.length" data-tip="Baseline loaded — diff in EDIT sidebar or Tools menu">Baseline</span>
+        <span class="header-baseline-badge" x-show="compareTimeline?.events?.length" data-tip="Baseline loaded — diff summary in EDIT sidebar; export via Tools menu">Baseline</span>
 
         <div class="header-groups">
           <input type="file" x-ref="openTimelineInput" accept=".json,application/json" @change="handleOpenTimelineFile($event)" hidden>
@@ -221,6 +221,17 @@
       </div>
     </div>
 
+    <div class="demo-banner" x-show="demoBannerVisible" role="status">
+      <p class="demo-banner-text">
+        <strong>Demo timeline loaded.</strong>
+        Replace with your data in INPUT or start fresh via File → New timeline.
+      </p>
+      <div class="demo-banner-actions">
+        <button type="button" class="btn btn-sm" @click="goToInputFromDemoBanner()">Go to INPUT</button>
+        <button type="button" class="btn btn-sm btn-ghost" @click="dismissDemoBanner()">Dismiss</button>
+      </div>
+    </div>
+
     <section class="incident-panel" aria-label="Timeline preview">
       <header class="incident-panel-head">
         <h2 class="incident-panel-title">Timeline preview</h2>
@@ -238,7 +249,8 @@
             maxlength="120"
           >
           <span class="incident-badge" x-show="filterIsActive() && timeline.events.length">Filtered</span>
-          <button type="button" class="incident-quality-badge" x-show="analysis && timeline.events.length" @click="openQualityPanel()" :class="(analysis?.score ?? 0) >= 80 ? 'quality-good' : (analysis?.score ?? 0) >= 60 ? 'quality-warn' : 'quality-poor'" :data-tip="qualityIssueCount() + ' issue(s), ' + qualityRecommendationCount() + ' recommendation(s) — click for details'">
+          <button type="button" class="incident-quality-badge" x-show="analysis && timeline.events.length" @click="openQualityPanel()" :class="(analysis?.score ?? 0) >= 80 ? 'quality-good' : (analysis?.score ?? 0) >= 60 ? 'quality-warn' : 'quality-poor'" :data-tip="'Data quality — ' + qualityIssueCount() + ' issue(s), ' + qualityRecommendationCount() + ' recommendation(s)'" :aria-label="'Data quality ' + (analysis?.score ?? '—') + ' out of 100'">
+            <span class="incident-quality-label">Data</span>
             <span x-text="analysis?.score ?? '—'"></span>/100
           </button>
         </div>
@@ -383,6 +395,9 @@
     <section class="panel tab-panel input-panel" :class="{ 'is-active': tab === 'input' }">
       <div class="input-header">
         <h2 class="panel-heading">Source data</h2>
+        <div class="input-header-actions">
+          <button type="button" class="btn btn-sm btn-primary" @click="importTimeline()" :disabled="!canImportTimeline()">Import timeline</button>
+        </div>
       </div>
 
       <div class="input-modes">
@@ -465,13 +480,24 @@
         </div>
 
         <div class="input-feedback">
+          <template x-if="inputImportSuccess">
+            <div class="input-import-success">
+              <p class="input-import-success-text">
+                <strong x-text="inputImportSuccess.count + ' events imported.'"></strong>
+                What would you like to do next?
+              </p>
+              <div class="input-import-success-actions">
+                <button type="button" class="btn btn-sm" @click="setTab('edit')">Review in EDIT →</button>
+                <button type="button" class="btn btn-sm btn-primary" @click="setTab('publish')">Choose layout in PUBLISH →</button>
+              </div>
+            </div>
+          </template>
           <p x-show="detectedFormatHint" class="input-detect-hint" x-text="detectedFormatHint"></p>
           <p x-show="inputError" class="input-error" x-text="inputError"></p>
           <p x-show="inputParseStats && inputParseStats.skipped" class="input-parse-stats">
             Parsed <strong x-text="inputParseStats?.parsed"></strong> of <strong x-text="inputParseStats?.attempted"></strong> lines
             (<span x-text="inputParseStats?.skipped"></span> skipped)
           </p>
-          <p x-show="statusMessage && !inputError && !busy" class="input-status" x-text="statusMessage"></p>
         </div>
       </div>
 
@@ -489,7 +515,7 @@
           <p class="edit-subtitle" x-show="timeline.events.length">
             <strong x-text="editEvents().length"></strong> / <strong x-text="timeline.events.length"></strong>
             <span x-show="filterIsActive()"> · filtered</span>
-            <span x-show="analysis"> · <strong x-text="analysis ? analysis.score : ''"></strong>/100</span>
+            <span x-show="analysis"> · Data quality <strong x-text="analysis ? analysis.score : ''"></strong>/100</span>
             <span x-show="displayTimezone() !== 'UTC'"> · <strong x-text="displayTimezoneLabel()"></strong></span>
           </p>
         </div>
@@ -529,8 +555,8 @@
           <div class="edit-sidebar-filters">
           <section class="quality-sidebar" x-show="analysis && timeline.events.length" x-ref="qualitySection">
             <div class="quality-sidebar-head">
-              <h3>Quality <span class="quality-score-pill" x-text="(analysis?.score ?? '—') + '/100'"></span></h3>
-              <button type="button" class="btn btn-xs btn-ghost" @click="openQualityPanel()" title="Full quality report">Expand</button>
+              <h3>Data quality <span class="quality-score-pill" x-text="(analysis?.score ?? '—') + '/100'"></span></h3>
+              <button type="button" class="btn btn-xs btn-ghost" @click="openQualityPanel()" title="Full data quality report">Expand</button>
             </div>
 
             <div class="quality-group" x-show="analysisIssuesList().length">
@@ -637,6 +663,18 @@
               </template>
             </div>
           </div>
+          <div class="filter-group filter-group-scroll" x-show="uniqueTechniques().length">
+            <h3>MITRE technique</h3>
+            <div class="filter-chips filter-chips-scroll">
+              <button type="button" class="filter-chip" :class="{ active: !editTechniqueFilter }" @click="editTechniqueFilter = ''">All</button>
+              <template x-for="t in uniqueTechniques()" :key="t">
+                <button type="button" class="filter-chip filter-chip-mitre" :class="{ active: editTechniqueFilter === t }" @click="selectTechniqueFilter(t)">
+                  <span x-text="t"></span>
+                  <span class="filter-count" x-text="techniqueEventCount(t)"></span>
+                </button>
+              </template>
+            </div>
+          </div>
           <div class="filter-group" x-show="uniqueTags().length">
             <h3>Tags</h3>
             <div class="filter-chips filter-chips-scroll">
@@ -649,8 +687,21 @@
               </template>
             </div>
           </div>
-          <div class="diff-panel" x-show="compareTimeline?.events?.length && showDiffPanel">
-            <h3>Timeline diff</h3>
+          <section class="baseline-panel">
+            <div class="baseline-panel-head">
+              <h3>Baseline compare</h3>
+            </div>
+            <template x-if="!compareTimeline?.events?.length">
+              <div class="baseline-panel-empty">
+                <p class="baseline-panel-hint">Compare against an earlier timeline export. Adds, removals, and edits show in the event table and PUBLISH preview overlay.</p>
+                <input type="file" x-ref="loadBaselineInput" accept=".json,application/json" @change="loadCompareTimeline($event)" hidden>
+                <div class="baseline-panel-actions">
+                  <button type="button" class="btn btn-sm btn-ghost" @click="triggerLoadBaseline()">Load file…</button>
+                  <button type="button" class="btn btn-sm" @click="saveCurrentAsBaseline()">Snapshot current</button>
+                </div>
+              </div>
+            </template>
+            <div class="diff-panel" x-show="compareTimeline?.events?.length && showDiffPanel">
             <p class="diff-summary" x-text="diffSummaryText()"></p>
             <p class="diff-baseline" x-show="compareLabel">
               Baseline: <span x-text="compareLabel"></span>
@@ -679,14 +730,16 @@
                 </template>
               </div>
             </template>
-            <button type="button" class="btn btn-sm btn-ghost" @click="clearCompareTimeline()">Clear baseline</button>
-          </div>
+            <div class="baseline-panel-loaded-actions">
+              <button type="button" class="btn btn-xs btn-ghost" @click="triggerLoadBaseline()">Replace file…</button>
+              <button type="button" class="btn btn-xs btn-ghost" @click="saveCurrentAsBaseline()">Update snapshot</button>
+              <button type="button" class="btn btn-xs btn-ghost" @click="clearCompareTimeline()">Clear</button>
+            </div>
+            </div>
+          </section>
           </div>
           <div class="edit-sidebar-footer">
           <button type="button" class="btn btn-sm btn-ghost filter-clear" x-show="filterIsActive()" @click="clearEditFilters()">Clear filters</button>
-          <input type="file" x-ref="loadBaselineInput" accept=".json,application/json" @change="loadCompareTimeline($event)" hidden>
-          <button type="button" class="btn btn-sm btn-ghost" style="width:100%;margin-top:.35rem" @click="$refs.loadBaselineInput.click()">Load baseline…</button>
-          <button type="button" class="btn btn-sm btn-ghost" style="width:100%;margin-top:.35rem" @click="saveCurrentAsBaseline()">Save as baseline</button>
           </div>
         </aside>
 
@@ -956,13 +1009,6 @@
 
         <div class="publish-main">
           <div class="publish-preview-column">
-            <div class="preview-quality-bar" x-show="tab === 'publish' && timeline.events.length">
-              <span>Layout quality:
-                <strong :class="previewLayoutClass()" x-text="previewLayoutScore != null ? previewLayoutScore + '/100' : '—'"></strong>
-              </span>
-              <span class="preview-quality-hint preview-quality-warn" x-show="previewLayoutOverflow > 0" x-text="previewLayoutOverflow + ' overflow issue(s)'"></span>
-              <button type="button" class="btn btn-sm" @click="runLayoutAudit()" data-tip="Re-scan the preview for text overflow and export readiness">Check layout</button>
-            </div>
             <div class="viz-preview-wrap viz-preview-clickable" id="viz-preview-wrap" @click="handlePreviewClick($event)">
               <div id="viz-preview"></div>
             </div>
@@ -970,13 +1016,7 @@
 
           <aside class="publish-deliver" x-show="timeline.events.length">
             <h2 class="publish-deliver-heading">Deliver</h2>
-            <label class="checkbox-row output-filter-option">
-              <input type="checkbox" x-model="timeline.meta.applyEditFiltersToExport" @change="scheduleSave()">
-              Export filtered events only
-            </label>
-            <p class="input-hint output-filter-hint" x-show="timeline.meta.applyEditFiltersToExport && filterIsActive()">
-              Exporting <strong x-text="exportTimeline().events.length"></strong> of <strong x-text="timeline.events.length"></strong> events.
-            </p>
+            <p class="publish-deliver-lead">Export the layout shown in the preview.</p>
 
             <div class="publish-primary-actions" x-show="primaryPublishActions().length">
               <template x-for="item in primaryPublishActions()" :key="'primary-' + item.type">
@@ -987,43 +1027,19 @@
               </template>
             </div>
 
-            <div class="publish-export-groups">
-              <template x-for="section in publishSectionsForLayout()" :key="section.id">
-                <details class="publish-export-group" :open="section.defaultOpen">
-                  <summary>
-                    <span x-text="section.title"></span>
-                    <span class="publish-export-group-hint" x-text="section.hint"></span>
-                  </summary>
-                  <div class="output-grid publish-export-grid">
-                    <template x-for="item in section.items" :key="section.id + item.type">
-                      <div
-                        class="output-card"
-                        :class="{ 'output-card-featured': isRecommendedExport(item.type) }"
-                        @click="runPublishExport(item.type)"
-                        :data-tip="item.label"
-                      >
-                        <div class="icon" x-text="item.icon"></div>
-                        <strong x-text="item.label"></strong>
-                      </div>
-                    </template>
-                  </div>
-                </details>
+            <div class="publish-secondary-actions" x-show="secondaryPublishActions().length">
+              <template x-for="item in secondaryPublishActions()" :key="'secondary-' + item.type">
+                <button type="button" class="btn btn-sm btn-ghost publish-secondary-btn" @click="runPublishExport(item.type)">
+                  <span x-text="item.icon"></span>
+                  <span x-text="item.label"></span>
+                </button>
               </template>
-
-              <details class="publish-export-group" x-show="compareTimeline?.events?.length">
-                <summary>Baseline diff</summary>
-                <div class="output-grid publish-export-grid">
-                  <div class="output-card" @click="exportDiffAs('markdown')">
-                    <div class="icon">≠</div>
-                    <strong>Diff report</strong>
-                  </div>
-                  <div class="output-card" @click="exportDiffAs('csv')">
-                    <div class="icon">≠</div>
-                    <strong>Diff CSV</strong>
-                  </div>
-                </div>
-              </details>
             </div>
+
+            <p class="publish-deliver-more">
+              Report templates, CSV/JSON/STIX, and share options are in the header
+              <button type="button" class="btn btn-sm btn-ghost publish-more-link" @click="openHeaderExportMenu()">Export menu</button>.
+            </p>
           </aside>
         </div>
       </div>
@@ -1035,6 +1051,34 @@
       <option :value="t.id" x-text="t.id + ' — ' + t.name"></option>
     </template>
   </datalist>
+
+  <div class="app-toast" x-show="statusMessage && !busy" role="status" aria-live="polite" x-cloak>
+    <span class="app-toast-text" x-text="statusMessage"></span>
+    <button type="button" class="app-toast-dismiss" @click="clearStatusFlash()" aria-label="Dismiss notification">×</button>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showWelcomeModal }" @click.self="">
+    <div class="modal welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title" @click.stop>
+      <h3 id="welcome-title">Welcome to TimelineForge</h3>
+      <p class="welcome-modal-lead">Turn IR notes and tool exports into executive and SOC-ready timelines — entirely in your browser. Your data stays local.</p>
+      <p class="welcome-modal-hint">Choose how to begin:</p>
+      <div class="welcome-modal-actions">
+        <button type="button" class="btn btn-primary" @click="welcomeTrySample()">Try APT breach sample</button>
+        <button type="button" class="btn" @click="welcomeStartBlank()">Start blank timeline</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" :class="{ 'is-open': showClearSourceModal }" @click.self="cancelClearSource()">
+    <div class="modal" @click.stop>
+      <h3>Clear source and timeline?</h3>
+      <p>Removing all source text will also delete <strong x-text="timeline.events.length"></strong> imported event(s). This cannot be undone with undo.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn" @click="cancelClearSource()">Keep events</button>
+        <button type="button" class="btn btn-primary" @click="confirmClearSource()">Clear source &amp; events</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-backdrop" :class="{ 'is-open': showNewTimelineModal }" @click.self="closeNewTimelineModal()">
     <div class="modal" @click.stop>
@@ -1065,8 +1109,8 @@
 
   <div class="modal-backdrop" :class="{ 'is-open': showQualityPanel }" @click.self="showQualityPanel = false">
     <div class="modal quality-modal" @click.stop>
-      <h3>Timeline quality</h3>
-      <p class="quality-modal-score">Score <strong x-text="analysis?.score ?? '—'"></strong>/100 · <span x-text="timeline.events.length"></span> events</p>
+      <h3>Timeline data quality</h3>
+      <p class="quality-modal-score">Data quality score <strong x-text="analysis?.score ?? '—'"></strong>/100 · <span x-text="timeline.events.length"></span> events</p>
 
       <div class="quality-group" x-show="analysisIssuesList().length">
         <h4 class="quality-group-title">Issues <span class="quality-count" x-text="analysisIssuesList().length"></span></h4>
@@ -1138,7 +1182,6 @@
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>1</kbd></dt><dd>INPUT tab</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>2</kbd></dt><dd>EDIT tab</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>3</kbd></dt><dd>PUBLISH tab</dd>
-        <dt><kbd>⌘/Ctrl</kbd> + <kbd>4</kbd></dt><dd>PUBLISH tab</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>N</kbd></dt><dd>New timeline (clear workspace)</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>S</kbd></dt><dd>Save draft</dd>
         <dt><kbd>⌘/Ctrl</kbd> + <kbd>O</kbd></dt><dd>Open timeline JSON</dd>

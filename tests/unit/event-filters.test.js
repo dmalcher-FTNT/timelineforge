@@ -57,19 +57,30 @@ describe('event-filters', () => {
   it('observableFilterState uses host chip for known hostnames', () => {
     const hosts = ['HOST-A', 'HOST-B'];
     assert.deepEqual(observableFilterState('HOST-A', hosts, {}), {
-      search: '', host: 'HOST-A', user: '', category: '', tag: '',
+      search: '', host: 'HOST-A', user: '', category: '', tag: '', technique: '',
     });
     assert.deepEqual(observableFilterState('HOST-A', hosts, { host: 'HOST-A' }), {
-      search: '', host: '', user: '', category: '', tag: '',
+      search: '', host: '', user: '', category: '', tag: '', technique: '',
     });
   });
 
   it('observableFilterState uses search for other observables', () => {
     assert.deepEqual(observableFilterState('10.0.0.5', ['HOST-A'], {}), {
-      search: '10.0.0.5', host: '', user: '', category: '', tag: '',
+      search: '10.0.0.5', host: '', user: '', category: '', tag: '', technique: '',
     });
     assert.deepEqual(observableFilterState('10.0.0.5', ['HOST-A'], { search: '10.0.0.5' }), {
-      search: '', host: '', user: '', category: '', tag: '',
+      search: '', host: '', user: '', category: '', tag: '', technique: '',
     });
+  });
+
+  it('filters by MITRE technique including sub-techniques', () => {
+    const withTechniques = [
+      { technique: 'T1059.001', details: 'powershell' },
+      { technique: 'T1059.003', details: 'cmd' },
+      { technique: 'T1566', details: 'phish' },
+    ];
+    assert.equal(filterEvents(withTechniques, { technique: 'T1059' }).length, 2);
+    assert.equal(filterEvents(withTechniques, { technique: 'T1566' }).length, 1);
+    assert.equal(filtersActive({ technique: 'T1059' }), true);
   });
 });

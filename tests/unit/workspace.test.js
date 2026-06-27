@@ -8,7 +8,6 @@ describe('createEmptyTimeline', () => {
     assert.equal(t.events.length, 0);
     assert.equal(t.meta.title, '');
     assert.equal(t.meta.timezone, 'UTC');
-    assert.equal(t.meta.applyEditFiltersToExport, false);
   });
 
   it('preserves theme and timezone when provided', () => {

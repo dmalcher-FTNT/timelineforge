@@ -50,7 +50,6 @@ import { parseIrTool } from './input/ir-tools.js';
 import { exportJSON, exportPDF, exportPNG, exportStandaloneHTML } from './output/export.js';
 import { encodeShareLink, decodeShareLink, encodeLocalShareLink } from './output/share-encode.js';
 import { validateExport } from './output/export-validate.js';
-import { auditPreviewLayout } from './output/layout-audit.js';
 import { createExportThumbnail } from './output/export-capture.js';
 import { exportBasename, exportTitle } from './output/export-names.js';
 import {
@@ -61,6 +60,7 @@ import {
 } from './output/export-preflight.js';
 import { downloadSharePack } from './output/share-pack.js';
 import { findPreviewEventTarget, stepEventIndex } from './edit/event-focus.js';
+import { hasWelcomeBeenSeen, markWelcomeSeen } from './onboarding.js';
 import { clearDraft, draftAgeLabel, loadDraft, loadDraftAsync, migrateLegacyStorage, saveDraft } from './storage.js';
 import { accentHoverColor, DEFAULT_ACCENT, normalizeAccentColor } from './theme.js';
 import {
@@ -89,7 +89,6 @@ let saveTimer = null;
 let changeTimer = null;
 let analyzeTimer = null;
 let previewTimer = null;
-let inputTimer = null;
 let historyTimer = null;
 let sourceSyncTimer = null;
 let renderVisualizationFn = null;
@@ -115,6 +114,7 @@ export function createApp() {
     tab: 'input',
     busy: false,
     statusMessage: '',
+    _statusFlashTimer: null,
     progress: 0,
 
     inputMode: 'manual',
@@ -130,6 +130,7 @@ export function createApp() {
     editUserFilter: '',
     editCategoryFilter: '',
     editTagFilter: '',
+    editTechniqueFilter: '',
     showDiffPanel: true,
     selectedEventIds: [],
 
@@ -140,6 +141,13 @@ export function createApp() {
     shareLinkResult: null,
     shareFallbackTimeline: null,
     showNewTimelineModal: false,
+    showWelcomeModal: false,
+    showClearSourceModal: false,
+    demoBannerVisible: false,
+    inputImportSuccess: null,
+
+    _lastInputText: '',
+    _allowInputClear: false,
 
     analysis: null,
     dragIndex: null,
@@ -149,8 +157,6 @@ export function createApp() {
     exportPreflight: null,
     exportPreviewThumb: null,
     pendingExportType: null,
-    previewLayoutScore: null,
-    previewLayoutOverflow: 0,
     pdfMeta: null,
     pdfUploadBuffer: null,
     pdfNeedsOcr: false,
@@ -199,10 +205,33 @@ export function createApp() {
 
     headerExportSections: [
       {
-        title: 'Share',
+        title: 'Report templates',
+        items: [
+          { type: 'executive-pdf', label: 'Executive one-pager (PDF)' },
+          { type: 'appendix-pdf', label: 'Appendix page (PDF)' },
+          { type: 'appendix-png', label: 'Appendix page (PNG)' },
+          { type: 'report-pack', label: 'Report pack (ZIP)' },
+          { type: 'docx', label: 'Word document' },
+          { type: 'pptx', label: 'PowerPoint' },
+          { type: 'appendix-pptx', label: 'Appendix slide (PPTX)' },
+        ],
+      },
+      {
+        title: 'Data & integrations',
+        items: [
+          { type: 'markdown', label: 'Markdown table' },
+          { type: 'csv', label: 'CSV export' },
+          { type: 'json', label: 'JSON data' },
+          { type: 'stix', label: 'STIX 2.1 bundle' },
+          { type: 'ical', label: 'iCalendar (.ics)' },
+        ],
+      },
+      {
+        title: 'Share & deliver',
         items: [
           { type: 'link', label: 'Shareable link' },
           { type: 'share-file', label: 'Share file' },
+          { type: 'html', label: 'Interactive HTML' },
         ],
       },
     ],
@@ -211,49 +240,12 @@ export function createApp() {
       {
         id: 'this-view',
         title: 'This view',
-        hint: 'Exports exactly what you see in the preview above.',
-        defaultOpen: true,
+        hint: 'Exports exactly what you see in the preview.',
         items: [
           { type: 'png', label: 'PNG image', icon: '🖼' },
           { type: 'pdf', label: 'PDF document', icon: '📄' },
           { type: 'svg', label: 'SVG vector', icon: '◇' },
           { type: 'print', label: 'Print', icon: '🖨' },
-        ],
-      },
-      {
-        id: 'report-templates',
-        title: 'Report templates',
-        hint: 'Built-in report layouts — not the current preview.',
-        items: [
-          { type: 'executive-pdf', label: 'Executive one-pager (PDF)', icon: '📰' },
-          { type: 'appendix-pdf', label: 'Appendix page (PDF)', icon: '📎' },
-          { type: 'appendix-png', label: 'Appendix page (PNG)', icon: '🗂' },
-          { type: 'report-pack', label: 'Report pack (ZIP)', icon: '📦' },
-          { type: 'docx', label: 'Word document', icon: '📃' },
-          { type: 'pptx', label: 'PowerPoint', icon: '📊' },
-          { type: 'appendix-pptx', label: 'Appendix slide (PPTX)', icon: '📑' },
-        ],
-      },
-      {
-        id: 'data',
-        title: 'Data & integrations',
-        hint: 'Structured exports for tools, spreadsheets, and threat intel.',
-        items: [
-          { type: 'markdown', label: 'Markdown table', icon: '📝' },
-          { type: 'csv', label: 'CSV export', icon: '📋' },
-          { type: 'json', label: 'JSON data', icon: '{ }' },
-          { type: 'stix', label: 'STIX 2.1 bundle', icon: '⬡' },
-          { type: 'ical', label: 'iCalendar (.ics)', icon: '📅' },
-        ],
-      },
-      {
-        id: 'share',
-        title: 'Share & deliver',
-        hint: 'Portable timeline for colleagues and stakeholders.',
-        items: [
-          { type: 'link', label: 'Shareable link', icon: '🔗' },
-          { type: 'share-file', label: 'Share file', icon: '📤' },
-          { type: 'html', label: 'Interactive HTML', icon: '🌐' },
         ],
       },
     ],
@@ -274,8 +266,9 @@ export function createApp() {
           { action: 'link-sequential', label: 'Link sequential events' },
           { action: 'merge-duplicates', label: 'Merge duplicate events' },
           { action: 'anonymize', label: 'Anonymize…' },
-          { action: 'baseline', label: 'Save as baseline' },
-          { action: 'quality', label: 'Quality analysis' },
+          { action: 'load-baseline', label: 'Load baseline file…' },
+          { action: 'baseline', label: 'Snapshot current as baseline' },
+          { action: 'quality', label: 'Data quality analysis' },
         ],
       },
       {
@@ -418,7 +411,10 @@ export function createApp() {
     },
 
     allPublishExportItems() {
-      return this.publishDeliverSections.flatMap((section) => section.items);
+      return [
+        ...this.publishDeliverSections.flatMap((section) => section.items),
+        ...this.headerExportSections.flatMap((section) => section.items),
+      ];
     },
 
     primaryPublishActions() {
@@ -427,13 +423,20 @@ export function createApp() {
       return hints.map((type) => byType.get(type)).filter(Boolean).slice(0, 3);
     },
 
+    secondaryPublishActions() {
+      const primary = new Set(this.primaryPublishActions().map((item) => item.type));
+      return this.publishDeliverSections
+        .flatMap((section) => section.items)
+        .filter((item) => !primary.has(item.type));
+    },
+
     headerExportMenuSections() {
       const quick = this.primaryPublishActions().map((item) => ({
         type: item.type,
         label: item.label,
       }));
       const sections = [];
-      if (quick.length) sections.push({ title: 'Quick export', items: quick });
+      if (quick.length) sections.push({ title: 'Quick export (current layout)', items: quick });
       sections.push(...this.headerExportSections);
       return sections;
     },
@@ -532,8 +535,8 @@ export function createApp() {
         if (this.refreshEventDetails()) this.scheduleSave();
         this.applyTheme();
         if (this.timeline.events?.length) this.notifyTimelineChanged({ skipSourceSync: true });
-      } else {
-        await this.loadFileSample('example');
+      } else if (!hasWelcomeBeenSeen()) {
+        this.showWelcomeModal = true;
       }
       appHistory = createHistory(this.timeline);
       if (this.timeline.events?.length) this.scheduleAutoAnalyze();
@@ -546,23 +549,27 @@ export function createApp() {
       this.$watch('inputText', () => {
         if (!ready || this._syncingSource) return;
         this.persistInputToMeta();
-        if (!this.inputText.trim()) {
-          if (this.timeline.events.length) {
-            this.timeline.events = [];
-            this.notifyTimelineChanged({ fromInput: true });
+        const trimmed = this.inputText.trim();
+        if (!trimmed) {
+          if (this.timeline.events.length && !this._allowInputClear && this._lastInputText?.trim()) {
+            this.showClearSourceModal = true;
+            this._syncingSource = true;
+            this.inputText = this._lastInputText;
+            this.$nextTick(() => { this._syncingSource = false; });
+            return;
           }
-          this.inputError = '';
-          this.inputParseStats = null;
+          if (this._allowInputClear) {
+            this.inputError = '';
+            this.inputParseStats = null;
+          }
           return;
         }
-        clearTimeout(inputTimer);
-        inputTimer = setTimeout(() => this.processInputAuto(), 700);
+        this._lastInputText = this.inputText;
       });
 
       this.$watch('importTool', () => {
         if (!ready || this._syncingSource) return;
         this.persistInputToMeta();
-        if (this.inputText.trim() && this.inputMode === 'import') this.processInputAuto();
       });
 
       this.$watch('inputMode', () => {
@@ -570,10 +577,59 @@ export function createApp() {
         this.timeline.meta.sourceMode = this.inputMode;
         if (this.timeline.events?.length) {
           this.syncSourceFromEvents();
-        } else if (this.inputText.trim()) {
-          this.processInputAuto();
         }
       });
+    },
+
+    welcomeStartBlank() {
+      markWelcomeSeen();
+      this.showWelcomeModal = false;
+      this.demoBannerVisible = false;
+      this.statusMessage = 'Blank timeline — paste or import your data in INPUT.';
+      this.scheduleStatusClear(3000);
+    },
+
+    async welcomeTrySample() {
+      markWelcomeSeen();
+      this.showWelcomeModal = false;
+      await this.loadFileSample('example');
+    },
+
+    dismissDemoBanner() {
+      this.demoBannerVisible = false;
+    },
+
+    goToInputFromDemoBanner() {
+      this.setTab('input');
+    },
+
+    confirmClearSource() {
+      this._allowInputClear = true;
+      this.showClearSourceModal = false;
+      this.inputText = '';
+      this._lastInputText = '';
+      this.timeline.events = [];
+      this.inputParseStats = null;
+      this.inputError = '';
+      this.inputImportSuccess = null;
+      this.demoBannerVisible = false;
+      if (this.timeline.meta) this.timeline.meta.isDemoSample = false;
+      this.notifyTimelineChanged({ fromInput: true });
+      this._allowInputClear = false;
+      this.statusMessage = 'Source cleared — timeline events removed.';
+      this.scheduleStatusClear(2500);
+    },
+
+    cancelClearSource() {
+      this.showClearSourceModal = false;
+    },
+
+    canImportTimeline() {
+      return Boolean(this.inputText?.trim()) && !this.busy;
+    },
+
+    async importTimeline() {
+      await this.processInputAuto();
     },
 
     async initPlugins() {
@@ -597,7 +653,8 @@ export function createApp() {
       e.preventDefault();
       this.inputText = text;
       this.applyInputDetection(text);
-      this.statusMessage = 'Pasted from clipboard — parsing…';
+      this.statusMessage = 'Pasted — click Import timeline when ready.';
+      this.scheduleStatusClear(3000);
     },
 
     onSourcePaste(e) {
@@ -645,6 +702,7 @@ export function createApp() {
       this.importTool = meta.sourceImportTool || 'generic-csv';
       this._syncingSource = true;
       this.inputText = meta.sourceText || '';
+      this._lastInputText = this.inputText;
       this.$nextTick(() => { this._syncingSource = false; });
     },
 
@@ -707,7 +765,7 @@ export function createApp() {
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
         this.statusMessage = 'Undone.';
       }
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 1500);
+      this.scheduleStatusClear(1500);
     },
 
     redo() {
@@ -720,7 +778,7 @@ export function createApp() {
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
         this.statusMessage = 'Redone.';
       }
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 1500);
+      this.scheduleStatusClear(1500);
     },
 
     scheduleAutoAnalyze() {
@@ -790,13 +848,17 @@ export function createApp() {
       this.persistInputToMeta();
       this.timeline.events = events;
       this.timeline.meta.manualOrder = false;
+      this.timeline.meta.isDemoSample = false;
+      this.demoBannerVisible = false;
+      this.inputImportSuccess = { count: events.length };
+      this._lastInputText = this.inputText;
       this.notifyTimelineChanged({ fromInput: true });
-      let msg = `${events.length} events parsed`;
+      let msg = `${events.length} events imported`;
       if (this.inputParseStats?.skipped) {
         msg += ` (${this.inputParseStats.skipped} line(s) skipped)`;
       }
       this.statusMessage = msg;
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2000);
+      this.scheduleStatusClear(3500);
     },
 
     ensureTimelineMeta() {
@@ -804,9 +866,6 @@ export function createApp() {
       if (!this.timeline.meta.theme) this.timeline.meta.theme = 'light';
       if (!this.timeline.meta.accentColor) this.timeline.meta.accentColor = DEFAULT_ACCENT;
       this.timeline.meta.accentColor = normalizeAccentColor(this.timeline.meta.accentColor);
-      if (this.timeline.meta.applyEditFiltersToExport === undefined) {
-        this.timeline.meta.applyEditFiltersToExport = false;
-      }
       if (!this.timeline.meta.timezone) this.timeline.meta.timezone = 'UTC';
       if (!this.timeline.meta.sourceMode) this.timeline.meta.sourceMode = 'manual';
       if (this.timeline.meta.sourceText === undefined) this.timeline.meta.sourceText = '';
@@ -914,7 +973,7 @@ export function createApp() {
       const text = observablesToText(this.timelineObservables());
       if (!text) {
         this.statusMessage = 'No observables found in timeline.';
-        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
         return;
       }
       try {
@@ -923,21 +982,21 @@ export function createApp() {
       } catch {
         this.statusMessage = 'Could not copy observables.';
       }
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+      this.scheduleStatusClear(2500);
     },
 
     async downloadObservablesCsv() {
       const obs = this.timelineObservables();
       if (!obs.total) {
         this.statusMessage = 'No observables found in timeline.';
-        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
         return;
       }
       const { downloadText } = await import('./output/table-export.js');
       const base = exportBasename(this.timeline.meta);
       downloadText(observablesToCsv(obs), `${base}-observables.csv`, 'text/csv');
       this.statusMessage = `Exported ${obs.total} observable(s).`;
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+      this.scheduleStatusClear(2500);
     },
 
     incidentCatBarWidth(count) {
@@ -966,7 +1025,7 @@ export function createApp() {
       const parsed = parseFlexibleDate(trimmed);
       if (!parsed) {
         this.statusMessage = `Could not parse date: ${trimmed}`;
-        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
         return;
       }
       this.updateEvent(id, field, parsed);
@@ -1053,6 +1112,9 @@ export function createApp() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         this.timeline = await res.json();
         this.ensureTimelineMeta();
+        this.timeline.meta.isDemoSample = true;
+        this.demoBannerVisible = true;
+        this.inputImportSuccess = null;
         this.applyStoredUserSettings();
         this.applyTheme();
         appHistory = createHistory(this.timeline);
@@ -1063,7 +1125,7 @@ export function createApp() {
         const label = this.fileSamples.find((s) => s.id === id)?.label || id;
         const layoutLabel = this.activeDesignLayout()?.label || 'layout';
         this.statusMessage = `Loaded ${label} (${this.timeline.events.length} events) — ${layoutLabel} layout.`;
-        setTimeout(() => { this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
       } catch (e) {
         console.error('loadFileSample failed', e);
         this.statusMessage = id === 'example'
@@ -1076,32 +1138,32 @@ export function createApp() {
       const events = this.timeline.events || [];
       if (events.length < 2) {
         this.statusMessage = events.length ? 'Need at least two events to link.' : 'Add events before linking.';
-        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
         return;
       }
       this.timeline.events = linkSequentialEvents(events);
       this.notifyTimelineChanged();
       this.statusMessage = 'Sequential links applied — try Attack graph in PUBLISH.';
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 3000);
+      this.scheduleStatusClear(3000);
     },
 
     applyMergeDuplicates() {
       const events = this.timeline.events || [];
       if (!events.length) {
         this.statusMessage = 'Add events before merging duplicates.';
-        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
         return;
       }
       const { events: merged, removed } = collapseDuplicateEvents(events);
       if (!removed) {
         this.statusMessage = 'No duplicate events found.';
-        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
         return;
       }
       this.timeline.events = merged;
       this.notifyTimelineChanged();
       this.statusMessage = `Merged ${removed} duplicate event${removed === 1 ? '' : 's'}.`;
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 3000);
+      this.scheduleStatusClear(3000);
     },
 
     syncJson() {
@@ -1121,6 +1183,26 @@ export function createApp() {
     },
 
     applyJson() {},
+
+    scheduleStatusClear(ms = 8000) {
+      if (this._statusFlashTimer) clearTimeout(this._statusFlashTimer);
+      const duration = Math.max(ms, 8000);
+      this._statusFlashTimer = setTimeout(() => {
+        if (!this.busy) this.statusMessage = '';
+        this._statusFlashTimer = null;
+      }, duration);
+    },
+
+    flashStatus(message, ms = 8000) {
+      this.statusMessage = message;
+      this.scheduleStatusClear(ms);
+    },
+
+    clearStatusFlash() {
+      if (this._statusFlashTimer) clearTimeout(this._statusFlashTimer);
+      this._statusFlashTimer = null;
+      this.statusMessage = '';
+    },
 
     setTab(t) {
       if (t === 'design' || t === 'output' || t === 'output-tab') t = 'publish';
@@ -1150,7 +1232,7 @@ export function createApp() {
         return;
       }
       if (!(e.metaKey || e.ctrlKey)) return;
-      const map = { '1': 'input', '2': 'edit', '3': 'publish', '4': 'publish' };
+      const map = { '1': 'input', '2': 'edit', '3': 'publish' };
       if (map[e.key]) {
         e.preventDefault();
         this.setTab(map[e.key]);
@@ -1160,7 +1242,7 @@ export function createApp() {
         saveDraft(this.timeline, this.compareTimeline);
         this.draftSavedAt = Date.now();
         this.statusMessage = 'Draft saved.';
-        setTimeout(() => { this.statusMessage = ''; }, 1500);
+        this.scheduleStatusClear(1500);
       }
       if (e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -1235,7 +1317,7 @@ export function createApp() {
       this.editExpandedId = id;
       if (idx < 0) {
         this.statusMessage = 'Event is hidden by active EDIT filters — clear filters to edit it.';
-        setTimeout(() => { this.statusMessage = ''; }, 3500);
+        this.scheduleStatusClear(3500);
         return;
       }
       this.$nextTick(() => {
@@ -1327,6 +1409,10 @@ export function createApp() {
       this.headerMenuOpen = this.headerMenuOpen === name ? null : name;
     },
 
+    openHeaderExportMenu() {
+      this.headerMenuOpen = 'export';
+    },
+
     closeHeaderMenu() {
       this.headerMenuOpen = null;
       this.fileSamplesOpen = false;
@@ -1340,7 +1426,7 @@ export function createApp() {
         saveDraft(this.timeline, this.compareTimeline);
         this.draftSavedAt = Date.now();
         this.statusMessage = 'Draft saved.';
-        setTimeout(() => { this.statusMessage = ''; }, 1500);
+        this.scheduleStatusClear(1500);
       }
       else if (action === 'new') this.openNewTimelineModal();
       else if (action === 'sample') this.loadFileSample(arg);
@@ -1384,6 +1470,10 @@ export function createApp() {
       }
       if (action === 'baseline') {
         this.saveCurrentAsBaseline();
+        return;
+      }
+      if (action === 'load-baseline') {
+        this.triggerLoadBaseline();
         return;
       }
       if (action === 'quality') {
@@ -1451,11 +1541,14 @@ export function createApp() {
       this.editUserFilter = '';
       this.editCategoryFilter = '';
       this.editTagFilter = '';
+      this.editTechniqueFilter = '';
       this.selectedEventIds = [];
       this.focusedEventId = null;
       this.analysis = null;
       this.currentFileName = null;
       this.inputParseStats = null;
+      this.inputImportSuccess = null;
+      this.demoBannerVisible = false;
 
       this.inputMode = 'manual';
       this.inputText = '';
@@ -1504,7 +1597,7 @@ export function createApp() {
       const result = await encodeLocalShareLink(exportTimeline);
       if (result.tooLarge || !result.url) {
         this.statusMessage = 'Local bookmarks need IndexedDB — use Download timeline file instead.';
-        setTimeout(() => { this.statusMessage = ''; }, 3500);
+        this.scheduleStatusClear(3500);
         return;
       }
       this.shareLinkResult = result;
@@ -1514,7 +1607,7 @@ export function createApp() {
       } catch {
         this.statusMessage = 'Copy the link from the share dialog.';
       }
-      setTimeout(() => { this.statusMessage = ''; }, 3500);
+      this.scheduleStatusClear(3500);
     },
 
     closeShareModal() {
@@ -1531,7 +1624,7 @@ export function createApp() {
         } else {
           this.statusMessage = 'Timeline file downloaded — send the JSON to open in TimelineForge (Header → Open).';
         }
-        setTimeout(() => { this.statusMessage = ''; }, 4000);
+        this.scheduleStatusClear(4000);
       }
       this.closeShareModal();
     },
@@ -1544,7 +1637,7 @@ export function createApp() {
       } else {
         this.statusMessage = 'Timeline file downloaded.';
       }
-      setTimeout(() => { this.statusMessage = ''; }, 4000);
+      this.scheduleStatusClear(4000);
     },
 
     applyAnonymize() {
@@ -1553,7 +1646,7 @@ export function createApp() {
       this.closeAnonymizeModal();
       this.notifyTimelineChanged();
       this.statusMessage = 'Timeline anonymized. Review placeholders in EDIT.';
-      setTimeout(() => { this.statusMessage = ''; }, 3000);
+      this.scheduleStatusClear(3000);
     },
 
     addEvent() {
@@ -1609,6 +1702,7 @@ export function createApp() {
         user: this.editUserFilter,
         category: this.editCategoryFilter,
         tag: this.editTagFilter,
+        technique: this.editTechniqueFilter,
       });
     },
 
@@ -1619,6 +1713,7 @@ export function createApp() {
         user: this.editUserFilter,
         category: this.editCategoryFilter,
         tag: this.editTagFilter,
+        technique: this.editTechniqueFilter,
       };
     },
 
@@ -1715,7 +1810,6 @@ export function createApp() {
     openQualityPanel() {
       this.analyzeData();
       this.showQualityPanel = true;
-      this.setTab('edit');
     },
 
     triggerOpenTimeline() {
@@ -1732,6 +1826,9 @@ export function createApp() {
         this.compareLabel = '';
         this.currentFileName = file.name;
         this.ensureTimelineMeta();
+        this.timeline.meta.isDemoSample = false;
+        this.demoBannerVisible = false;
+        this.inputImportSuccess = null;
         this.applyStoredUserSettings();
         if (this.refreshEventDetails()) this.scheduleSave();
         this.applyTheme();
@@ -1741,7 +1838,7 @@ export function createApp() {
         this.notifyTimelineChanged({ skipHistory: true, skipSourceSync: true });
         this.tab = 'input';
         this.statusMessage = `Opened ${file.name} (${this.timeline.events.length} events)`;
-        setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
       } catch (e) {
         this.statusMessage = `Could not open file: ${e.message}`;
       }
@@ -1754,7 +1851,7 @@ export function createApp() {
       if (result.method === 'picker') this.currentFileName = result.name;
       this.scheduleSave();
       this.statusMessage = result.method === 'picker' ? `Saved ${result.name}` : 'Timeline downloaded as JSON';
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2000);
+      this.scheduleStatusClear(2000);
     },
 
     uniqueHostnames() {
@@ -1775,6 +1872,18 @@ export function createApp() {
 
     uniqueTags() {
       return uniqueTagValues(this.timeline.events);
+    },
+
+    uniqueTechniques() {
+      return uniqueFieldValues(this.timeline.events, 'technique');
+    },
+
+    techniqueEventCount(technique) {
+      const t = technique.toUpperCase();
+      return this.timeline.events.filter((e) => {
+        const et = (e.technique || '').trim().toUpperCase();
+        return et === t || et.startsWith(`${t}.`);
+      }).length;
     },
 
     tagEventCount(tag) {
@@ -1800,6 +1909,7 @@ export function createApp() {
       this.editUserFilter = next.user;
       this.editCategoryFilter = next.category;
       this.editTagFilter = next.tag;
+      this.editTechniqueFilter = next.technique;
       if (!filtersActive(next)) {
         this.statusMessage = 'Cleared observable filter.';
       } else if (next.host) {
@@ -1808,7 +1918,7 @@ export function createApp() {
         const label = item.value.length > 36 ? `${item.value.slice(0, 34)}…` : item.value;
         this.statusMessage = `Filtering events containing ${label}.`;
       }
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2200);
+      this.scheduleStatusClear(2200);
     },
 
     observableFilterActive(value) {
@@ -1825,12 +1935,17 @@ export function createApp() {
       this.editCategoryFilter = toggleSingleFilter(this.editCategoryFilter, cat);
     },
 
+    selectTechniqueFilter(technique) {
+      this.editTechniqueFilter = toggleSingleFilter(this.editTechniqueFilter, technique);
+    },
+
     clearEditFilters() {
       this.editSearch = '';
       this.editHostFilter = '';
       this.editUserFilter = '';
       this.editCategoryFilter = '';
       this.editTagFilter = '';
+      this.editTechniqueFilter = '';
       this.clearSelection();
     },
 
@@ -1876,7 +1991,7 @@ export function createApp() {
       this.clearSelection();
       this.notifyTimelineChanged();
       this.statusMessage = `Deleted ${ids.size} event${ids.size === 1 ? '' : 's'}.`;
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2000);
+      this.scheduleStatusClear(2000);
     },
 
     timelineDiff() {
@@ -1902,12 +2017,16 @@ export function createApp() {
     saveCurrentAsBaseline() {
       this.compareTimeline = JSON.parse(JSON.stringify(this.timeline));
       this.ensureEventIds(this.compareTimeline.events);
-      this.compareLabel = `${this.timeline.meta.title || 'Current'} (baseline)`;
+      this.compareLabel = `${this.timeline.meta.title || 'Current'} (snapshot)`;
       if (!this.timeline.meta) this.timeline.meta = {};
       this.timeline.meta.showCompareOverlay = true;
       this.scheduleSave();
-      this.statusMessage = 'Saved current timeline as comparison baseline.';
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2500);
+      this.flashStatus('Baseline snapshot saved — diff summary is in EDIT sidebar.');
+      this.$nextTick(() => this.renderPreview());
+    },
+
+    triggerLoadBaseline() {
+      this.$refs.loadBaselineInput?.click();
     },
 
     timelineStats() {
@@ -1925,7 +2044,7 @@ export function createApp() {
       bulkUpdateEvents(this.timeline.events, ids, 'category', value);
       this.notifyTimelineChanged();
       this.statusMessage = `Set category on ${ids.size} event${ids.size === 1 ? '' : 's'}`;
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2000);
+      this.scheduleStatusClear(2000);
     },
 
     bulkApplyPhase(value) {
@@ -1935,13 +2054,10 @@ export function createApp() {
       bulkUpdateEvents(this.timeline.events, ids, 'phase', phase);
       this.notifyTimelineChanged();
       this.statusMessage = `Set phase on ${ids.size} event${ids.size === 1 ? '' : 's'}`;
-      setTimeout(() => { if (!this.busy) this.statusMessage = ''; }, 2000);
+      this.scheduleStatusClear(2000);
     },
 
     exportTimeline() {
-      if (this.timeline.meta.applyEditFiltersToExport && this.filterIsActive()) {
-        return { ...this.timeline, events: this.filteredEditEvents() };
-      }
       return this.timeline;
     },
 
@@ -1949,7 +2065,7 @@ export function createApp() {
       const diff = this.timelineDiff();
       if (!diff || (!diff.added.length && !diff.removed.length && !diff.changed.length)) {
         this.statusMessage = 'No baseline or no differences to export.';
-        setTimeout(() => { this.statusMessage = ''; }, 2500);
+        this.scheduleStatusClear(2500);
         return;
       }
       const meta = {
@@ -1961,7 +2077,7 @@ export function createApp() {
       if (format === 'markdown') exportDiffMarkdown(diff, meta);
       else exportDiffCSV(diff, meta);
       this.statusMessage = 'Diff exported.';
-      setTimeout(() => { this.statusMessage = ''; }, 2000);
+      this.scheduleStatusClear(2000);
     },
 
     eventIndex(evt) {
@@ -2065,22 +2181,6 @@ export function createApp() {
         compareTimeline: this.compareTimeline,
       });
       await this.$nextTick();
-      this.runLayoutAudit();
-    },
-
-    runLayoutAudit() {
-      const el = document.getElementById('viz-preview');
-      if (!el || this.tab !== 'publish') return;
-      const layout = auditPreviewLayout(el);
-      this.previewLayoutScore = layout.score;
-      this.previewLayoutOverflow = layout.overflowCount;
-    },
-
-    previewLayoutClass() {
-      if (this.previewLayoutScore == null) return '';
-      if (this.previewLayoutScore >= 88) return 'preview-quality-good';
-      if (this.previewLayoutScore >= 70) return 'preview-quality-warn';
-      return 'preview-quality-bad';
     },
 
     async exportPreviewAs(type) {
@@ -2097,10 +2197,6 @@ export function createApp() {
       const previewEl = document.getElementById('viz-preview');
       const exportTimeline = this.exportTimeline();
       const result = validateExport(exportTimeline, this.analysis, previewEl);
-      if (previewEl && this.tab === 'publish') {
-        this.previewLayoutScore = result.layoutScore;
-        this.previewLayoutOverflow = result.layoutOverflow ?? 0;
-      }
       if (['png', 'pdf', 'html'].includes(type)) {
         this.exportPreviewThumb = await createExportThumbnail(previewEl);
       } else {
@@ -2154,16 +2250,22 @@ export function createApp() {
         this.compareTimeline = JSON.parse(text);
         this.compareLabel = file.name;
         this.ensureEventIds(this.compareTimeline.events);
+        if (!this.timeline.meta) this.timeline.meta = {};
+        this.timeline.meta.showCompareOverlay = true;
         this.scheduleSave();
+        this.flashStatus(`Baseline loaded from ${file.name} — ${this.diffSummaryText() || 'no differences yet'}.`);
         this.$nextTick(() => this.renderPreview());
       } catch (e) {
-        this.statusMessage = `Could not load comparison file: ${e.message}`;
+        this.flashStatus(`Could not load baseline file: ${e.message}`, 10000);
       }
+      event.target.value = '';
     },
 
     clearCompareTimeline() {
       this.compareTimeline = null;
       this.compareLabel = '';
+      this.scheduleSave();
+      this.flashStatus('Baseline cleared.');
       this.renderPreview();
     },
 
@@ -2298,14 +2400,14 @@ export function createApp() {
       } else {
         this.statusMessage = verify.items[0]?.message || 'Export may have quality issues.';
       }
-      setTimeout(() => { this.statusMessage = ''; }, 4000);
+      this.scheduleStatusClear(4000);
     },
 
     clearSavedDraft() {
       clearDraft();
       this.draftSavedAt = null;
       this.statusMessage = 'Draft cleared from browser storage.';
-      setTimeout(() => { this.statusMessage = ''; }, 2000);
+      this.scheduleStatusClear(2000);
     },
 
     async runPdfOcr() {

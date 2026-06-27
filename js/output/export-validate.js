@@ -37,12 +37,12 @@ export function validateExport(timeline, qualityAnalysis = null, previewEl = nul
   if (qualityAnalysis && qualityAnalysis.score < 70) {
     items.push({
       severity: 'warning',
-      message: `Timeline quality score is ${qualityAnalysis.score}/100 — review suggestions in EDIT.`,
+      message: `Timeline data quality score is ${qualityAnalysis.score}/100 — review suggestions in EDIT.`,
     });
   }
   if (qualityAnalysis?.issues?.some((i) => i.severity === 'error')) {
     const n = qualityAnalysis.issues.filter((i) => i.severity === 'error').length;
-    items.push({ severity: 'warning', message: `${n} data quality error(s) — see EDIT analysis panel.` });
+    items.push({ severity: 'warning', message: `${n} data quality error(s) — see EDIT data quality panel.` });
   }
 
   let layoutScore = null;

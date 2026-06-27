@@ -13,6 +13,7 @@ import {
   derivePhaseBlurb,
   pickPhaseHighlights,
   timeToPercent,
+  timelineChartMinWidth,
 } from './phase-content.js';
 
 export function renderOverviewGrid(container, { events, meta }) {
@@ -62,6 +63,9 @@ export function renderOverviewGrid(container, { events, meta }) {
 
   container.appendChild(wrap);
 
+  const chartEl = wrap.querySelector('.overview-chart');
+  chartEl.style.minWidth = `${timelineChartMinWidth(axis.months.length)}px`;
+
   const yearsEl = wrap.querySelector('#overview-years');
   axis.years.forEach((y) => {
     const left = timeToPercent(y.startTime, axis.min, axis.max);
@@ -109,7 +113,7 @@ export function renderOverviewGrid(container, { events, meta }) {
         pct: timeToPercent(Date.parse(e.timestampStart), axis.min, axis.max),
         row: 0,
       })),
-      { minGapPct: 10, boxWidthPct: 18 },
+      { minGapPct: 8, boxWidthPct: 16 },
     );
 
     boxes.forEach(({ event: e, pct, row }) => {

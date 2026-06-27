@@ -18,12 +18,19 @@ export function countByTag(events, tag) {
   return events.filter((e) => (e.tags || []).includes(tag)).length;
 }
 
-export function filterEvents(events, { search = '', host = '', user = '', category = '', tag = '' } = {}) {
+export function filterEvents(events, { search = '', host = '', user = '', category = '', tag = '', technique = '' } = {}) {
   let list = events;
   if (host) list = list.filter((e) => e.hostname === host);
   if (user) list = list.filter((e) => e.username === user);
   if (category) list = list.filter((e) => e.category === category);
   if (tag) list = list.filter((e) => (e.tags || []).includes(tag));
+  if (technique) {
+    const t = technique.toUpperCase();
+    list = list.filter((e) => {
+      const et = (e.technique || '').trim().toUpperCase();
+      return et === t || et.startsWith(`${t}.`);
+    });
+  }
   const q = search.trim().toLowerCase();
   if (q) {
     list = list.filter((e) =>
@@ -36,7 +43,7 @@ export function filterEvents(events, { search = '', host = '', user = '', catego
 }
 
 export function filtersActive(filters) {
-  return Boolean(filters.search?.trim() || filters.host || filters.user || filters.category || filters.tag);
+  return Boolean(filters.search?.trim() || filters.host || filters.user || filters.category || filters.tag || filters.technique);
 }
 
 export function toggleSingleFilter(current, value) {
@@ -49,8 +56,8 @@ export function toggleSingleFilter(current, value) {
  * @param {string[]} hosts Known hostnames on the timeline
  * @param {{ search?: string, host?: string }} current
  */
-export function observableFilterState(value, hosts, { search = '', host = '' } = {}) {
-  const cleared = { search: '', host: '', user: '', category: '', tag: '' };
+export function observableFilterState(value, hosts, { search = '', host = '', technique = '' } = {}) {
+  const cleared = { search: '', host: '', user: '', category: '', tag: '', technique: '' };
   if (hosts.includes(value)) {
     return { ...cleared, host: host === value ? '' : value };
   }
