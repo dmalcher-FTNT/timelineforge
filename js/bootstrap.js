@@ -5,7 +5,7 @@
 import Alpine from 'alpinejs';
 import { createApp } from './app.js';
 import { WORKSPACE_STEPS } from './workspace-tabs.js';
-import { APP_NAME } from './version.js';
+import { APP_NAME, SW_CACHE } from './version.js';
 import { decodeShareLinkInline } from './output/share-encode.js';
 import { markWelcomeSeen } from './onboarding.js';
 
@@ -80,17 +80,38 @@ function showBootError(msg) {
 Alpine.start();
 document.body?.removeAttribute('x-cloak');
 
-const BOOT_WATCH_MS = 12000;
+const BOOT_WATCH_MS = 8000;
 setTimeout(() => {
   if (document.body?.hasAttribute('x-cloak')) {
     showBootError('App is taking too long to start. Refresh the page or clear site data for this site.');
   }
 }, BOOT_WATCH_MS);
 
+/** Drop legacy SW caches that served stale vendor/ HTML on mobile. */
+async function purgeLegacyCaches() {
+  if (!('caches' in window)) return;
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter((key) => key.startsWith('timelineforge-offline-v') && key !== SW_CACHE)
+      .map((key) => caches.delete(key)),
+  );
+}
+
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  const registerSw = () => navigator.serviceWorker.register('sw.js').catch(() => {});
+  const registerSw = async () => {
+    await purgeLegacyCaches();
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    } catch {
+      /* offline or blocked — app still runs without SW */
+    }
+  };
   if ('requestIdleCallback' in window) {
-    requestIdleCallback(registerSw, { timeout: 4000 });
+    requestIdleCallback(() => { registerSw(); }, { timeout: 4000 });
   } else {
     setTimeout(registerSw, 1500);
   }

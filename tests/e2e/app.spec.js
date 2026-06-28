@@ -235,3 +235,34 @@ test.describe('TimelineForge UI', () => {
     await expect(page.locator('.edit-simple-list .edit-simple-item')).toHaveCount(1);
   });
 });
+
+test.describe('Mobile boot', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+    isMobile: true,
+    hasTouch: true,
+  });
+
+  test('boots on iPhone viewport without boot error', async ({ page }) => {
+    await skipWelcomeAndClearDraft(page);
+    await page.goto('/');
+    await expect(page.locator('.brand-title')).toHaveText('TimelineForge', { timeout: 15000 });
+    await expect(page.locator('#boot-error')).toBeHidden();
+    await expect(page.locator('body')).not.toHaveAttribute('x-cloak', '');
+    await expect(page.locator('.workspace-nav')).toBeVisible();
+    await expect(page.locator('.tab-panel.is-active')).toContainText('Source data');
+  });
+
+  test('workspace switcher works with touch', async ({ page }) => {
+    await skipWelcomeAndClearDraft(page);
+    await page.goto('/');
+    await expect(page.locator('.brand-title')).toHaveText('TimelineForge', { timeout: 15000 });
+    await page.getByRole('button', { name: 'Refine', exact: true }).tap();
+    await expect(page.locator('.tab-panel.is-active')).toContainText('Timeline events');
+    await page.getByRole('button', { name: 'Deliver', exact: true }).tap();
+    await expect(page.locator('.tab-panel.is-active')).toContainText('Deliver');
+    await page.getByRole('button', { name: 'Collect', exact: true }).tap();
+    await expect(page.locator('.tab-panel.is-active')).toContainText('Source data');
+  });
+});

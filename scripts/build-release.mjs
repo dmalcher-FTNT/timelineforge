@@ -45,9 +45,14 @@ async function rewriteVendorToLib(dir) {
       continue;
     }
     if (!/\.(html|js|mjs|webmanifest)$/.test(entry.name) && entry.name !== 'sw.js') continue;
-    const text = await readFile(path, 'utf8');
+    let text = await readFile(path, 'utf8');
     if (!text.includes('vendor/')) continue;
-    await writeFile(path, text.replaceAll('vendor/', 'lib/'), 'utf8');
+    if (entry.name === 'sw.js') {
+      text = text.replace("const DEPS = './vendor/';", "const DEPS = './lib/';");
+    } else {
+      text = text.replaceAll('vendor/', 'lib/');
+    }
+    await writeFile(path, text, 'utf8');
   }
 }
 

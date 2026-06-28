@@ -75,8 +75,6 @@ Investigation timelines often live in spreadsheets, SIEM tabs, or slide decks th
 - **Collapsible timeline overview** — activity window and scope stats when you need context
 - **Keyboard** — ⌘/Ctrl+1/2/3 workspaces, undo/redo, `?` for help
 
-Inspired by [MetroViz](https://github.com/rstockm/Metroviz), built for security incidents.
-
 ## Quick start
 
 **Try the demo:** [dmalcher-ftnt.github.io/timelineforge](https://dmalcher-ftnt.github.io/timelineforge/) → **File → Samples** (APT breach, ransomware, BEC, insider threat, …)

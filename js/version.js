@@ -1,5 +1,6 @@
 export const APP_NAME = 'TimelineForge';
-export const APP_VERSION = '1.3.10';
+export const APP_VERSION = '1.3.11';
+export const SW_CACHE = 'timelineforge-offline-v18';
 export const APP_SUBTITLE = 'CHAIN OF EVENTS';
 export const APP_FULL_TITLE = APP_NAME;
 export const APP_DESCRIPTION = 'Browser-based incident response timeline editor — turn IR notes, tool exports, and report appendices into executive and SOC-ready visuals.';

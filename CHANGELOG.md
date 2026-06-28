@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.11 — 2026-06-28
+
+- **Mobile boot fix** — service worker no longer serves stale `index.html` with broken `vendor/` import paths; legacy caches purged on boot; document requests always network-first
+- **README** — removed MetroViz attribution
+
 ## 1.3.10 — 2026-06-27
 
 - **Mobile boot fix** — service worker uses resilient precache (core assets only), network-first for app shell and dependencies, deferred registration; avoids blank page from stale or failed mobile caches
